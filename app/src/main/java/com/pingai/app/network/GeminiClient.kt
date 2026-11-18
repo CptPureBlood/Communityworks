@@ -1,6 +1,7 @@
 package com.pingai.app.network
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -8,6 +9,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
@@ -56,48 +58,71 @@ class GeminiClient : AiClient {
         }
     }
 
+    private fun friendly(code: Int, model: String, raw: String): String {
+        val tr = Locale.getDefault().language == "tr"
+        return when (code) {
+            429 -> if (tr) "Gemini istek limiti doldu (429). Birazdan otomatik tekrar denenecek."
+                   else "Gemini rate limit reached (429). Will retry automatically."
+            503 -> if (tr) "Gemini şu an yoğun (503). Birazdan otomatik tekrar denenecek."
+                   else "Gemini is busy (503). Will retry automatically."
+            else -> "Gemini $code ($model): $raw"
+        }
+    }
+
     override suspend fun generate(prompt: String, apiKey: String): Result<String> =
         withContext(Dispatchers.IO) {
             val models = (listCandidateModels(apiKey) + FALLBACK).distinct()
             var lastError: Exception = Exception("Gemini: no model available")
             for (model in models) {
-                try {
-                    val body = JSONObject().apply {
-                        put("contents", JSONArray().put(JSONObject().apply {
-                            put("parts", JSONArray().put(JSONObject().put("text", prompt)))
-                        }))
-                        put("generationConfig", JSONObject().apply {
-                            put("temperature", 0.8)
-                            put("maxOutputTokens", 1024)
-                        })
-                    }
-                    val request = Request.Builder()
-                        .url("${BASE_URL}models/$model:generateContent")
-                        .addHeader("x-goog-api-key", apiKey)
-                        .post(body.toString().toRequestBody("application/json".toMediaType()))
-                        .build()
-
-                    http.newCall(request).execute().use { response ->
-                        val text = response.body?.string().orEmpty()
-                        if (response.isSuccessful) {
-                            val result = JSONObject(text).optJSONArray("candidates")
-                                ?.optJSONObject(0)?.optJSONObject("content")
-                                ?.optJSONArray("parts")?.optJSONObject(0)
-                                ?.optString("text")?.trim()
-                            if (!result.isNullOrBlank()) return@withContext Result.success(result)
-                            lastError = Exception("Gemini $model: empty response")
-                        } else {
-                            val msg = runCatching {
-                                JSONObject(text).getJSONObject("error").getString("message")
-                            }.getOrDefault(text)
-                            lastError = Exception("Gemini ${response.code} ($model): $msg")
-                            if (response.code == 400 || response.code == 401 ||
-                                response.code == 403 || response.code == 429
-                            ) return@withContext Result.failure(lastError)
+                var attempt = 0
+                while (attempt < 2) {
+                    attempt++
+                    var retrySameModel = false
+                    try {
+                        val body = JSONObject().apply {
+                            put("contents", JSONArray().put(JSONObject().apply {
+                                put("parts", JSONArray().put(JSONObject().put("text", prompt)))
+                            }))
+                            put("generationConfig", JSONObject().apply {
+                                put("temperature", 0.8)
+                                put("maxOutputTokens", 1024)
+                            })
                         }
+                        val request = Request.Builder()
+                            .url("${BASE_URL}models/$model:generateContent")
+                            .addHeader("x-goog-api-key", apiKey)
+                            .post(body.toString().toRequestBody("application/json".toMediaType()))
+                            .build()
+
+                        http.newCall(request).execute().use { response ->
+                            val text = response.body?.string().orEmpty()
+                            if (response.isSuccessful) {
+                                val result = JSONObject(text).optJSONArray("candidates")
+                                    ?.optJSONObject(0)?.optJSONObject("content")
+                                    ?.optJSONArray("parts")?.optJSONObject(0)
+                                    ?.optString("text")?.trim()
+                                if (!result.isNullOrBlank()) return@withContext Result.success(result)
+                                lastError = Exception("Gemini $model: empty response")
+                            } else {
+                                val code = response.code
+                                val raw = runCatching {
+                                    JSONObject(text).getJSONObject("error").getString("message")
+                                }.getOrDefault(text)
+                                lastError = Exception(friendly(code, model, raw))
+                                when (code) {
+                                    // Anahtar/istek hatası: diğer modeller de aynı sonucu verir.
+                                    400, 401, 403 -> return@withContext Result.failure(lastError)
+                                    // Sunucu yoğun: kısa bekleyip aynı modeli bir kez daha dene.
+                                    500, 503 -> retrySameModel = attempt < 2
+                                    // 429 (kota) modele özeldir: sıradaki modele geç. 404 ve diğerleri de öyle.
+                                    else -> {}
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        lastError = e
                     }
-                } catch (e: Exception) {
-                    lastError = e
+                    if (retrySameModel) delay(2500) else break
                 }
             }
             Result.failure(lastError)

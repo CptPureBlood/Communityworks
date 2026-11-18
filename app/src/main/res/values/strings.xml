@@ -39,6 +39,7 @@
     <string name="widget_loading">Fetching your tip…</string>
     <string name="widget_error">Couldn\'t fetch a tip. Check your API key.</string>
     <string name="widget_no_topic">Tap to set a topic</string>
+    <string name="widget_refresh">Refresh</string>
     <string name="notification_channel_name">Ping AI Tips</string>
     <string name="notification_title">New tip: %1$s</string>
     <string name="detail_loading">Getting the detailed explanation…</string>

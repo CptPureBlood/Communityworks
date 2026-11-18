@@ -1,3 +1,7 @@
 <resources>
-    <style name="Theme.PingAI" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.PingAI" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#202020</item>
+        <item name="android:statusBarColor">#202020</item>
+        <item name="android:navigationBarColor">#202020</item>
+    </style>
 </resources>
