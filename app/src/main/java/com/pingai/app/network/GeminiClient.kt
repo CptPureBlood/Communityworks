@@ -11,15 +11,16 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * Google model adlarını sık değiştirir. Aşağıdaki listedeki modeller sırayla denenir;
- * biri bulunamazsa (404) veya kapatılmışsa bir sonrakine geçilir.
- * Güncel adlar: ai.google.dev/gemini-api/docs/deprecations
+ * Model adlarını sabit yazmak yerine Google'a "bu anahtarla hangi modeller kullanılabilir?" diye
+ * sorar (ListModels), en yeni Flash modelini seçer ve sırayla dener.
  */
 class GeminiClient : AiClient {
 
     companion object {
-        private val MODELS = listOf("gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash")
-        private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/"
+        private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
+        // Liste alınamazsa son çare:
+        private val FALLBACK = listOf("gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite")
+        private val VERSION_RE = Regex("""^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$""")
     }
 
     private val http = OkHttpClient.Builder()
@@ -27,10 +28,39 @@ class GeminiClient : AiClient {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
+    private fun listCandidateModels(apiKey: String): List<String> {
+        return try {
+            val req = Request.Builder()
+                .url("${BASE_URL}models?pageSize=200")
+                .addHeader("x-goog-api-key", apiKey)
+                .get().build()
+            http.newCall(req).execute().use { r ->
+                if (!r.isSuccessful) return emptyList()
+                val arr = JSONObject(r.body?.string().orEmpty()).optJSONArray("models") ?: return emptyList()
+                val found = mutableListOf<Triple<String, Double, Boolean>>() // ad, sürüm, lite mi
+                for (i in 0 until arr.length()) {
+                    val m = arr.getJSONObject(i)
+                    val name = m.optString("name").removePrefix("models/")
+                    val methods = m.optJSONArray("supportedGenerationMethods") ?: JSONArray()
+                    val canGenerate = (0 until methods.length()).any { methods.getString(it) == "generateContent" }
+                    val match = VERSION_RE.find(name) ?: continue
+                    if (!canGenerate) continue
+                    found += Triple(name, match.groupValues[1].toDouble(), match.groupValues[2].isNotEmpty())
+                }
+                // Önce lite olmayanlar, her grupta en yeni sürüm başta.
+                found.sortedWith(compareBy<Triple<String, Double, Boolean>> { it.third }.thenByDescending { it.second })
+                    .map { it.first }.take(4)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     override suspend fun generate(prompt: String, apiKey: String): Result<String> =
         withContext(Dispatchers.IO) {
+            val models = (listCandidateModels(apiKey) + FALLBACK).distinct()
             var lastError: Exception = Exception("Gemini: no model available")
-            for (model in MODELS) {
+            for (model in models) {
                 try {
                     val body = JSONObject().apply {
                         put("contents", JSONArray().put(JSONObject().apply {
@@ -42,7 +72,7 @@ class GeminiClient : AiClient {
                         })
                     }
                     val request = Request.Builder()
-                        .url("$BASE_URL$model:generateContent")
+                        .url("${BASE_URL}models/$model:generateContent")
                         .addHeader("x-goog-api-key", apiKey)
                         .post(body.toString().toRequestBody("application/json".toMediaType()))
                         .build()
@@ -61,7 +91,6 @@ class GeminiClient : AiClient {
                                 JSONObject(text).getJSONObject("error").getString("message")
                             }.getOrDefault(text)
                             lastError = Exception("Gemini ${response.code} ($model): $msg")
-                            // Anahtar hatası / kota: diğer modeller de aynı sonucu verir, hemen dön.
                             if (response.code == 400 || response.code == 401 ||
                                 response.code == 403 || response.code == 429
                             ) return@withContext Result.failure(lastError)
