@@ -40,7 +40,14 @@ class RefreshWorker(
 
             var anySuccess = false
             for (topic in toRefresh) {
-                repository.fetchShortTip(provider, apiKey, topic.name, lang).onSuccess { tip ->
+                val tipResult = repository.fetchShortTip(provider, apiKey, topic.name, lang)
+                tipResult.onFailure { e ->
+                    // Widget boşsa hatayı göster ki kullanıcı neyin yanlış olduğunu görsün.
+                    if (topic.shortInfo.isBlank() || topic.shortInfo.startsWith("⚠")) {
+                        prefs.upsertTopic(topic.copy(shortInfo = "⚠ " + (e.message ?: "Error").take(220)))
+                    }
+                }
+                tipResult.onSuccess { tip ->
                     anySuccess = true
                     val now = System.currentTimeMillis()
                     val updated = topic.copy(
