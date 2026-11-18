@@ -26,7 +26,10 @@ class RefreshWorker(
         return try {
             val provider = prefs.provider.first()
             val apiKey = keyStore.getKey(provider)
-            if (apiKey.isNullOrBlank()) return Result.failure()
+            if (apiKey.isNullOrBlank()) {
+                reportError(prefs, "No API key saved for ${provider.displayLabel}. Open Settings and paste your key.")
+                return Result.failure()
+            }
 
             val contentLangRaw = prefs.contentLanguage.first()
             val lang = if (contentLangRaw == "system") Locale.getDefault().language else contentLangRaw
@@ -64,8 +67,23 @@ class RefreshWorker(
             WorkScheduler.scheduleNext(applicationContext, if (anySuccess) intervalMinutes else 5)
             if (anySuccess) Result.success() else Result.failure()
         } catch (e: Exception) {
+            reportError(prefs, "${e.javaClass.simpleName}: ${e.message}")
             WorkScheduler.scheduleNext(applicationContext, 5)
             Result.failure()
+        }
+    }
+
+    /** Aktif konunun bilgi alanına hatayı yazar (widget ve Ayarlar'da görünür). */
+    private suspend fun reportError(prefs: Prefs, message: String) {
+        try {
+            val topics = prefs.getTopicsOnce()
+            val activeId = prefs.activeTopicId.first()
+            val topic = topics.firstOrNull { it.id == activeId } ?: topics.firstOrNull() ?: return
+            if (topic.shortInfo.isBlank() || topic.shortInfo.startsWith("⚠")) {
+                prefs.upsertTopic(topic.copy(shortInfo = "⚠ " + message.take(220)))
+            }
+            PingWidget().updateAll(applicationContext)
+        } catch (_: Exception) {
         }
     }
 }

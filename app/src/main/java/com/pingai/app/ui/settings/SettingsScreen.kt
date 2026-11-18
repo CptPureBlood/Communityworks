@@ -83,6 +83,19 @@ fun SettingsScreen() {
         HorizontalDivider(Modifier.padding(vertical = 16.dp))
 
         Section("${s(R.string.settings_topics)} (${topics.size}/$maxTopics)")
+        // Durum satırı: son bilgi veya hata mesajı burada görünür.
+        val activeTopic = topics.firstOrNull { it.id == activeTopicId } ?: topics.firstOrNull()
+        if (activeTopic != null) {
+            Text(
+                activeTopic.shortInfo.ifBlank { "…" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            OutlinedButton(
+                onClick = { WorkScheduler.runNow(context) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+            ) { Text(s(R.string.settings_manual_refresh)) }
+        }
         topics.forEach { topic ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 RadioButton(
