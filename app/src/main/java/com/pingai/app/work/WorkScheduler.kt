@@ -9,6 +9,7 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
@@ -53,8 +54,10 @@ object WorkScheduler {
     /** Zincir yoksa (ör. eski sürümden güncelleme) 1 dakika sonrasına kurar. */
     suspend fun ensureScheduled(context: Context) = withContext(Dispatchers.IO) {
         val wm = WorkManager.getInstance(context.applicationContext)
-        val active = CHAIN.any { name ->
-            wm.getWorkInfosForUniqueWork(name).get().any { !it.state.isFinished }
+        var active = false
+        for (name in CHAIN) {
+            val infos = wm.getWorkInfosForUniqueWorkFlow(name).first()
+            if (infos.any { !it.state.isFinished }) active = true
         }
         if (!active) scheduleNext(context, 1, null)
     }
