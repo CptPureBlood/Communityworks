@@ -184,4 +184,5 @@
     <string name="goal_next">Prochaine question</string>
     <string name="sec_app_theme">Thème de l\'app</string>
     <string name="theme_navy">Minuit</string>
+    <string name="share_tag">L\'INFO DU JOUR</string>
 </resources>

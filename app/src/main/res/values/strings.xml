@@ -202,4 +202,5 @@
     <string name="goal_next">Next question</string>
     <string name="sec_app_theme">App theme</string>
     <string name="theme_navy">Midnight</string>
+    <string name="share_tag">TIP OF THE DAY</string>
 </resources>

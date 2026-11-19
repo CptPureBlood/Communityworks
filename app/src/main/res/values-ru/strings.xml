@@ -184,4 +184,5 @@
     <string name="goal_next">Следующий вопрос</string>
     <string name="sec_app_theme">Тема приложения</string>
     <string name="theme_navy">Полночь</string>
+    <string name="share_tag">ФАКТ ДНЯ</string>
 </resources>
