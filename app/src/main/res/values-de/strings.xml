@@ -125,4 +125,14 @@
     <string name="badge_answered500">500 Antworten</string>
     <string name="freeze_ready">🧊 Serien-Schutz bereit (rettet einen verpassten Tag pro Monat)</string>
     <string name="freeze_used">🧊 Serien-Schutz diesen Monat verwendet</string>
+    <string name="settings_title">Einstellungen</string>
+    <string name="ach_title">Erfolge</string>
+    <string name="stat_day_streak">Tagesserie</string>
+    <string name="stat_correct_streak">Trefferserie</string>
+    <string name="stat_best_day">Beste Tagesserie</string>
+    <string name="stat_best_correct">Beste Trefferserie</string>
+    <string name="badge_cs10">10 richtig in Folge</string>
+    <string name="badge_cs25">25 richtig in Folge</string>
+    <string name="badge_cs100">100 richtig in Folge</string>
+    <string name="topic_pick">Thema wählen</string>
 </resources>

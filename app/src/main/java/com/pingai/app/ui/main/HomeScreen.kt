@@ -25,6 +25,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -105,9 +109,13 @@ private fun CountdownText(targetMs: Long, modifier: Modifier = Modifier) {
     Text(stringResource(R.string.widget_next_update, text), color = WinColors.TextDim, fontSize = 14.sp, modifier = modifier)
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(onOpenSaved: () -> Unit = {}) {
+fun HomeScreen(
+    onOpenSaved: () -> Unit = {},
+    onOpenAchievements: () -> Unit = {},
+    onOpenSettings: () -> Unit = {}
+) {
     val context = LocalContext.current
     val app = context.applicationContext
     val prefs = remember { Prefs(app) }
@@ -152,9 +160,8 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
     var topicDraft by remember { mutableStateOf("") }
     var keyInput by remember { mutableStateOf("") }
     var proCode by remember { mutableStateOf("") }
-    LaunchedEffect(provider) {
-        keyInput = withContext(Dispatchers.IO) { SecureKeyStore.get(app).getKey(provider) ?: "" }
-    }
+
+    var showTopics by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -165,13 +172,12 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Ping AI", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
-                Text(stringResource(R.string.main_subtitle), color = WinColors.TextDim)
-            }
-            Chip("♥ ${saved.size}", selected = false) { onOpenSaved() }
-            Spacer(Modifier.width(8.dp))
-            Chip("🔥 ${stats.effectiveStreak()}", selected = stats.effectiveStreak() > 0) { }
+            Text("Ping AI", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = WinColors.Text, modifier = Modifier.weight(1f))
+            Chip("♥", selected = false) { onOpenSaved() }
+            Spacer(Modifier.width(6.dp))
+            Chip("🏅", selected = false) { onOpenAchievements() }
+            Spacer(Modifier.width(6.dp))
+            Chip("⚙", selected = false) { onOpenSettings() }
         }
 
         if (updateVersion.isNotBlank() && updateUrl.isNotBlank()) {
@@ -193,6 +199,18 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl)))
                 }) { Text(stringResource(R.string.update_download)) }
             }
+        }
+
+        // Konu çipi + seriler
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Chip((active?.name ?: stringResource(R.string.topic_pick)) + " ▾", selected = true, modifier = Modifier.weight(1f, fill = false)) {
+                showTopics = true
+            }
+            Spacer(Modifier.weight(1f))
+            Text(
+                "🔥 ${stats.effectiveStreak()}  ✅ ${stats.correctStreak}",
+                color = WinColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
+            )
         }
 
         // Kahraman kart
@@ -302,40 +320,24 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
             }
         }
 
-        // İstatistikler
-        SectionCard(stringResource(R.string.sec_stats)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                StatCell("🔥 ${stats.effectiveStreak()}", stringResource(R.string.stat_streak))
-                StatCell("🏆 ${stats.best}", stringResource(R.string.stat_best))
-                StatCell("${stats.accuracyPercent}%", stringResource(R.string.stat_accuracy))
-                StatCell("${stats.answered}", stringResource(R.string.stat_answered))
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                stringResource(if (stats.freezeAvailable()) R.string.freeze_ready else R.string.freeze_used),
-                color = WinColors.TextDim, fontSize = 13.sp
-            )
-        }
+    }
 
-        // Rozetler
-        val earned = BADGES.count { it.earned(stats) }
-        SectionCard(stringResource(R.string.sec_badges, earned, BADGES.size)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                BADGES.forEach { b ->
-                    val on = b.earned(stats)
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.width(76.dp).alpha(if (on) 1f else 0.3f)
-                    ) {
-                        Text(b.emoji, fontSize = 28.sp)
-                        Text(stringResource(b.nameRes), color = WinColors.Text, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                    }
-                }
-            }
-        }
-
-        // Konular
-        SectionCard(stringResource(R.string.sec_topics, topics.size, maxTopics)) {
+    if (showTopics) {
+        ModalBottomSheet(
+            onDismissRequest = { showTopics = false; editing = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = WinColors.Card
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 28.dp)
+            ) {
+        Text(stringResource(R.string.sec_topics, topics.size, maxTopics), color = WinColors.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(12.dp))
+        run {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 topics.forEach { t ->
                     Chip(t.name, selected = t.id == active?.id) {
@@ -343,6 +345,7 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
                             prefs.setActiveTopicId(t.id)
                             WidgetUpdater.updateAll(app)
                         }
+                        showTopics = false
                     }
                 }
             }
@@ -383,6 +386,7 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
                         val mode = editing
                         val name = topicDraft.trim()
                         editing = null
+                        showTopics = false
                         scope.launch {
                             if (mode == "add") {
                                 val t = Topic(id = UUID.randomUUID().toString(), name = name)
@@ -401,203 +405,8 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
             }
         }
 
-        // Yenileme aralığı
-        SectionCard(stringResource(R.string.sec_refresh)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                RefreshInterval.entries.forEach { ri ->
-                    val locked = ri.isPro && !isPro
-                    Chip(
-                        label = ri.label + if (locked) " 🔒" else "",
-                        selected = interval == ri.minutes,
-                        enabled = !locked
-                    ) {
-                        scope.launch {
-                            prefs.setRefreshIntervalMinutes(ri.minutes)
-                            val now = System.currentTimeMillis()
-                            prefs.getTopicsOnce().forEach { t ->
-                                if (t.lastUpdatedEpochMs > 0L) {
-                                    prefs.updateTopic(t.id) { it.copy(nextUpdateEpochMs = now + ri.minutes * 60_000L) }
-                                }
-                            }
-                            WorkScheduler.scheduleNext(app, ri.minutes, null)
-                            WidgetUpdater.updateAll(app)
-                        }
-                    }
-                }
             }
         }
-
-        // Yapay zekâ
-        SectionCard(stringResource(R.string.sec_ai)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AiProvider.entries.forEach { p ->
-                    val locked = p != AiProvider.GEMINI && !isPro
-                    Chip(
-                        label = p.shortLabel + if (locked) " 🔒" else "",
-                        selected = provider == p,
-                        enabled = !locked
-                    ) { scope.launch { prefs.setProvider(p) } }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = keyInput,
-                onValueChange = { keyInput = it.trim() },
-                label = { Text(stringResource(R.string.ai_key_label) + " · " + provider.shortLabel) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            val savedMsg = stringResource(R.string.ai_saved)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
-                    val p = provider
-                    val k = keyInput
-                    scope.launch {
-                        withContext(Dispatchers.IO) { SecureKeyStore.get(app).setKey(p, k) }
-                        Toast.makeText(context, savedMsg, Toast.LENGTH_SHORT).show()
-                    }
-                }) { Text(stringResource(R.string.ai_save)) }
-                if (provider == AiProvider.GEMINI) {
-                    OutlinedButton(onClick = {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))
-                        )
-                    }) { Text(stringResource(R.string.ai_get_key)) }
-                }
-            }
-        }
-
-        // Tercihler
-        SectionCard(stringResource(R.string.sec_prefs)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.pref_notifications), color = WinColors.Text, modifier = Modifier.weight(1f))
-                Switch(checked = notif, onCheckedChange = { scope.launch { prefs.setNotificationsEnabled(it) } })
-            }
-            Spacer(Modifier.height(14.dp))
-            Text(stringResource(R.string.pref_content_language), color = WinColors.TextDim, fontSize = 13.sp)
-            Spacer(Modifier.height(6.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val effective = LocaleHelper.resolveContentLanguage(contentLang)
-                CONTENT_LANGUAGES.forEach { (code, label) ->
-                    Chip(label, selected = effective == code) { scope.launch { prefs.setContentLanguage(code) } }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Text(stringResource(R.string.pref_app_language), color = WinColors.TextDim, fontSize = 13.sp)
-            Spacer(Modifier.height(6.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val saved = LocaleHelper.saved(context)
-                (listOf("system" to stringResource(R.string.lang_system)) + APP_LANGUAGES).forEach { (code, label) ->
-                    Chip(label, selected = saved == code) {
-                        if (saved != code) {
-                            LocaleHelper.save(context, code)
-                            (context as? Activity)?.recreate()
-                        }
-                    }
-                }
-            }
-        }
-
-        // Sessiz saatler
-        SectionCard(stringResource(R.string.sec_quiet)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.quiet_desc), color = WinColors.TextDim, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(10.dp))
-                Switch(checked = quietOn, onCheckedChange = { scope.launch { prefs.setQuietEnabled(it) } })
-            }
-            if (quietOn) {
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.quiet_from), color = WinColors.TextDim, fontSize = 13.sp)
-                    Chip("%02d:%02d".format(quietStart / 60, quietStart % 60), selected = false) {
-                        TimePickerDialog(context, { _, h, m -> scope.launch { prefs.setQuietStartMin(h * 60 + m) } },
-                            quietStart / 60, quietStart % 60, true).show()
-                    }
-                    Text(stringResource(R.string.quiet_to), color = WinColors.TextDim, fontSize = 13.sp)
-                    Chip("%02d:%02d".format(quietEnd / 60, quietEnd % 60), selected = false) {
-                        TimePickerDialog(context, { _, h, m -> scope.launch { prefs.setQuietEndMin(h * 60 + m) } },
-                            quietEnd / 60, quietEnd % 60, true).show()
-                    }
-                }
-            }
-        }
-
-        // Widget teması + şık sayısı
-        SectionCard(stringResource(R.string.sec_theme)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                WidgetThemes.all.forEach { th ->
-                    ThemeTile(
-                        bg = Color(th.bg), button = Color(th.button), text = Color(th.text), accent = Color(th.accent),
-                        label = stringResource(th.nameRes),
-                        selected = themeId == th.id,
-                        locked = th.pro && !isPro
-                    ) {
-                        scope.launch { prefs.setWidgetTheme(th.id); WidgetUpdater.updateAll(app) }
-                    }
-                }
-            }
-            if (!isPro) {
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.theme_pro_note), color = WinColors.TextDim, fontSize = 13.sp)
-            }
-            Spacer(Modifier.height(14.dp))
-            Text(stringResource(R.string.pref_choices), color = WinColors.TextDim, fontSize = 13.sp)
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                (2..4).forEach { n ->
-                    val locked = n > 2 && !isPro
-                    Chip(
-                        label = "$n" + if (locked) " 🔒" else "",
-                        selected = (if (isPro) optionCount else 2) == n,
-                        enabled = !locked
-                    ) { scope.launch { prefs.setOptionCount(n) } }
-                }
-            }
-        }
-
-        // Pro
-        SectionCard(stringResource(R.string.sec_pro)) {
-            if (isPro) {
-                Text("✓ " + stringResource(R.string.pro_active), color = WinColors.Accent, fontWeight = FontWeight.SemiBold)
-            } else {
-                Text(stringResource(R.string.pro_body), color = WinColors.TextDim)
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = proCode,
-                        onValueChange = { proCode = it },
-                        label = { Text(stringResource(R.string.pro_code_hint)) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Button(onClick = {
-                        if (proCode.trim().equals(PRO_UNLOCK_CODE, ignoreCase = true)) {
-                            scope.launch {
-                                prefs.setPro(true)
-                                WidgetUpdater.updateAll(app)
-                            }
-                        }
-                    }) { Text(stringResource(R.string.pro_apply)) }
-                }
-            }
-        }
-
-        Text(stringResource(R.string.widget_howto), color = WinColors.TextDim, fontSize = 13.sp)
-        Text(
-            "Ping AI v${UpdateChecker.installedVersion(app)} · KCD",
-            color = WinColors.TextDim.copy(alpha = 0.7f), fontSize = 12.sp,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Spacer(Modifier.height(24.dp))
     }
 }
 
-@Composable
-private fun StatCell(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = WinColors.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(label, color = WinColors.TextDim, fontSize = 12.sp)
-    }
-}

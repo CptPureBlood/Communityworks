@@ -143,4 +143,14 @@
     <string name="freeze_ready">🧊 Seri koruma hazır (ayda bir kaçırılan günü kurtarır)</string>
     <string name="freeze_used">🧊 Seri koruma bu ay kullanıldı</string>
     <string name="review_prefix">Tekrar</string>
+    <string name="settings_title">Ayarlar</string>
+    <string name="ach_title">Başarılar</string>
+    <string name="stat_day_streak">Gün serisi</string>
+    <string name="stat_correct_streak">Doğru serisi</string>
+    <string name="stat_best_day">En uzun gün serisi</string>
+    <string name="stat_best_correct">En uzun doğru serisi</string>
+    <string name="badge_cs10">Üst üste 10 doğru</string>
+    <string name="badge_cs25">Üst üste 25 doğru</string>
+    <string name="badge_cs100">Üst üste 100 doğru</string>
+    <string name="topic_pick">Konu seç</string>
 </resources>

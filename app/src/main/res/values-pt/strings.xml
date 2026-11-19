@@ -125,4 +125,14 @@
     <string name="badge_answered500">500 respostas</string>
     <string name="freeze_ready">🧊 Proteção de sequência pronta (salva um dia perdido por mês)</string>
     <string name="freeze_used">🧊 Proteção de sequência usada neste mês</string>
+    <string name="settings_title">Configurações</string>
+    <string name="ach_title">Conquistas</string>
+    <string name="stat_day_streak">Sequência de dias</string>
+    <string name="stat_correct_streak">Sequência de acertos</string>
+    <string name="stat_best_day">Melhor sequência de dias</string>
+    <string name="stat_best_correct">Melhor sequência de acertos</string>
+    <string name="badge_cs10">10 acertos seguidos</string>
+    <string name="badge_cs25">25 acertos seguidos</string>
+    <string name="badge_cs100">100 acertos seguidos</string>
+    <string name="topic_pick">Escolher tema</string>
 </resources>

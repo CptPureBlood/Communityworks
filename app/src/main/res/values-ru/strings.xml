@@ -125,4 +125,14 @@
     <string name="badge_answered500">500 ответов</string>
     <string name="freeze_ready">🧊 Защита серии готова (спасает один пропущенный день в месяц)</string>
     <string name="freeze_used">🧊 Защита серии использована в этом месяце</string>
+    <string name="settings_title">Настройки</string>
+    <string name="ach_title">Достижения</string>
+    <string name="stat_day_streak">Серия дней</string>
+    <string name="stat_correct_streak">Серия верных ответов</string>
+    <string name="stat_best_day">Лучшая серия дней</string>
+    <string name="stat_best_correct">Лучшая серия верных</string>
+    <string name="badge_cs10">10 верных подряд</string>
+    <string name="badge_cs25">25 верных подряд</string>
+    <string name="badge_cs100">100 верных подряд</string>
+    <string name="topic_pick">Выбрать тему</string>
 </resources>

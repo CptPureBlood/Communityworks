@@ -143,4 +143,14 @@
     <string name="freeze_ready">🧊 Streak freeze ready (covers one missed day a month)</string>
     <string name="freeze_used">🧊 Streak freeze used this month</string>
     <string name="review_prefix">Review</string>
+    <string name="settings_title">Settings</string>
+    <string name="ach_title">Achievements</string>
+    <string name="stat_day_streak">Day streak</string>
+    <string name="stat_correct_streak">Correct streak</string>
+    <string name="stat_best_day">Best day streak</string>
+    <string name="stat_best_correct">Best correct streak</string>
+    <string name="badge_cs10">10 correct in a row</string>
+    <string name="badge_cs25">25 correct in a row</string>
+    <string name="badge_cs100">100 correct in a row</string>
+    <string name="topic_pick">Choose topic</string>
 </resources>

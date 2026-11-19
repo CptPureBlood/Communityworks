@@ -173,7 +173,9 @@ class Prefs(context: Context) {
                 lastDay = today.toString(),
                 answered = st.answered + 1,
                 correct = st.correct + if (correct) 1 else 0,
-                freezeMonth = freezeMonth
+                freezeMonth = freezeMonth,
+                correctStreak = if (correct) st.correctStreak + 1 else 0,
+                bestCorrect = maxOf(st.bestCorrect, if (correct) st.correctStreak + 1 else 0)
             )
             p[Keys.STATS_JSON] = upd.toJson()
         }

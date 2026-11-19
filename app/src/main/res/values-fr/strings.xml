@@ -125,4 +125,14 @@
     <string name="badge_answered500">500 réponses</string>
     <string name="freeze_ready">🧊 Protection de série prête (sauve un jour manqué par mois)</string>
     <string name="freeze_used">🧊 Protection de série utilisée ce mois-ci</string>
+    <string name="settings_title">Paramètres</string>
+    <string name="ach_title">Succès</string>
+    <string name="stat_day_streak">Série de jours</string>
+    <string name="stat_correct_streak">Série de bonnes réponses</string>
+    <string name="stat_best_day">Meilleure série de jours</string>
+    <string name="stat_best_correct">Meilleure série de bonnes réponses</string>
+    <string name="badge_cs10">10 bonnes réponses d’affilée</string>
+    <string name="badge_cs25">25 bonnes réponses d’affilée</string>
+    <string name="badge_cs100">100 bonnes réponses d’affilée</string>
+    <string name="topic_pick">Choisir un sujet</string>
 </resources>

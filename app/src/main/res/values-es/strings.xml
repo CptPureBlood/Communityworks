@@ -125,4 +125,14 @@
     <string name="badge_answered500">500 respuestas</string>
     <string name="freeze_ready">🧊 Protección de racha lista (salva un día perdido al mes)</string>
     <string name="freeze_used">🧊 Protección de racha usada este mes</string>
+    <string name="settings_title">Ajustes</string>
+    <string name="ach_title">Logros</string>
+    <string name="stat_day_streak">Racha diaria</string>
+    <string name="stat_correct_streak">Racha de aciertos</string>
+    <string name="stat_best_day">Mejor racha diaria</string>
+    <string name="stat_best_correct">Mejor racha de aciertos</string>
+    <string name="badge_cs10">10 aciertos seguidos</string>
+    <string name="badge_cs25">25 aciertos seguidos</string>
+    <string name="badge_cs100">100 aciertos seguidos</string>
+    <string name="topic_pick">Elegir tema</string>
 </resources>

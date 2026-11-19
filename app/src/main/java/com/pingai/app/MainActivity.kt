@@ -18,7 +18,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.pingai.app.core.LocaleHelper
 import com.pingai.app.data.Prefs
-import com.pingai.app.ui.main.MainScreen
+import com.pingai.app.ui.main.HomeScreen
+import com.pingai.app.ui.main.AchievementsScreen
+import com.pingai.app.ui.main.SettingsScreen
 import com.pingai.app.ui.main.SavedScreen
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +67,16 @@ class MainActivity : ComponentActivity() {
                     when (onboardingDone) {
                         null -> {}
                         false -> OnboardingScreen()
-                        true -> if (page == "saved") SavedScreen { page = "home" } else MainScreen { page = "saved" }
+                        true -> when (page) {
+                            "saved" -> SavedScreen { page = "home" }
+                            "ach" -> AchievementsScreen { page = "home" }
+                            "settings" -> SettingsScreen { page = "home" }
+                            else -> HomeScreen(
+                                onOpenSaved = { page = "saved" },
+                                onOpenAchievements = { page = "ach" },
+                                onOpenSettings = { page = "settings" }
+                            )
+                        }
                     }
                 }
             }

@@ -129,7 +129,10 @@ data class Stats(
     val answered: Int = 0,
     val correct: Int = 0,
     /** Seri korumanın kullanıldığı ay (yyyy-MM). */
-    val freezeMonth: String = ""
+    val freezeMonth: String = "",
+    /** Üst üste doğru cevap sayısı. */
+    val correctStreak: Int = 0,
+    val bestCorrect: Int = 0
 ) {
     fun freezeAvailable(): Boolean = freezeMonth != YearMonth.now().toString()
 
@@ -148,13 +151,15 @@ data class Stats(
     fun toJson(): String = JSONObject().apply {
         put("streak", streak); put("best", best); put("lastDay", lastDay)
         put("answered", answered); put("correct", correct); put("freezeMonth", freezeMonth)
+        put("correctStreak", correctStreak); put("bestCorrect", bestCorrect)
     }.toString()
 
     companion object {
         fun parse(raw: String?): Stats = try {
             if (raw.isNullOrBlank()) Stats() else JSONObject(raw).let {
                 Stats(it.optInt("streak"), it.optInt("best"), it.optString("lastDay"),
-                    it.optInt("answered"), it.optInt("correct"), it.optString("freezeMonth"))
+                    it.optInt("answered"), it.optInt("correct"), it.optString("freezeMonth"),
+                    it.optInt("correctStreak"), it.optInt("bestCorrect"))
             }
         } catch (e: Exception) { Stats() }
     }

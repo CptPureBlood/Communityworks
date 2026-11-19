@@ -94,8 +94,8 @@ object WidgetUpdater {
         views.setInt(R.id.w_refresh, "setColorFilter", theme.dim)
 
         val streak = stats.effectiveStreak()
-        if (streak > 0) {
-            views.setTextViewText(R.id.w_streak, "🔥 $streak")
+        if (streak > 0 || stats.correctStreak > 0) {
+            views.setTextViewText(R.id.w_streak, "🔥$streak ✅${stats.correctStreak}")
             views.setTextColor(R.id.w_streak, theme.text)
             views.setViewVisibility(R.id.w_streak, View.VISIBLE)
         } else views.setViewVisibility(R.id.w_streak, View.GONE)
