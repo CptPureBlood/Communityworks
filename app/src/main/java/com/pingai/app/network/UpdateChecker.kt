@@ -20,7 +20,11 @@ object UpdateChecker {
     } catch (e: Exception) { "0" }
 
     private fun parts(v: String): List<Int> =
-        v.trim().removePrefix("v").split(".").map { it.filter(Char::isDigit).toIntOrNull() ?: 0 }
+        v.trim().removePrefix("v").split(".").mapIndexed { i, p ->
+            val d = p.filter(Char::isDigit)
+            // 0.8 -> 0.80 (0.71'den büyük olsun); yalnızca ikinci bileşen için
+            (if (i == 1 && d.length == 1) d + "0" else d).toIntOrNull() ?: 0
+        }
 
     fun isNewer(remote: String, local: String): Boolean {
         val a = parts(remote); val b = parts(local)

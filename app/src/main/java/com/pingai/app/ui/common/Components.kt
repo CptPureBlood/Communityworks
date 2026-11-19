@@ -360,6 +360,6 @@ fun LoadingMessage(color: Color, fontSize: androidx.compose.ui.unit.TextUnit = 1
     } else {
         msgs[order[(elapsed / 2_000L).toInt() % order.size]]
     }
-    val dots = ((elapsed % 2_000L) / 333L % 4L).toInt()
+    val dots = ((elapsed % 2_000L) / 333L % 3L).toInt() + 1
     Text(base + ".".repeat(dots), color = color, fontSize = fontSize)
 }

@@ -202,7 +202,7 @@ fun HomeScreen(
     var showTopics by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
-    PingBackground(active?.tipId, Modifier.fillMaxSize())
+    PingBackground(active?.tipId, loading, Modifier.fillMaxSize())
     Column(
         modifier = Modifier
             .fillMaxSize()

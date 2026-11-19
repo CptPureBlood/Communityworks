@@ -182,4 +182,6 @@
     <string name="nav_settings">Réglages</string>
     <string name="goal_title">Objectif du jour : %1$d / %2$d</string>
     <string name="goal_next">Prochaine question</string>
+    <string name="sec_app_theme">Thème de l\'app</string>
+    <string name="theme_navy">Minuit</string>
 </resources>

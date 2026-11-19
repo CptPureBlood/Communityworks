@@ -77,6 +77,11 @@ class MainActivity : ComponentActivity() {
             val onboardingDone by prefs.onboardingDone.collectAsState(initial = null)
             var page by remember { mutableStateOf("home") }
             BackHandler(enabled = page != "home") { page = "home" }
+            val appThemeId by prefs.appTheme.collectAsState(initial = "navy")
+            val isProNow by prefs.isPro.collectAsState(initial = false)
+            androidx.compose.runtime.SideEffect {
+                WinColors.current = com.pingai.app.ui.theme.AppThemes.byId(appThemeId, isProNow)
+            }
             PingAiTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = WinColors.Bg) {
                     when (onboardingDone) {

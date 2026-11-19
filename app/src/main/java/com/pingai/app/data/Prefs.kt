@@ -33,6 +33,7 @@ class Prefs(context: Context) {
         val STATS_JSON = stringPreferencesKey("stats_json")
         val SAVED_JSON = stringPreferencesKey("saved_json")
         val WIDGET_THEME = stringPreferencesKey("widget_theme")
+        val APP_THEME = stringPreferencesKey("app_theme")
         val QUIET_ENABLED = booleanPreferencesKey("quiet_enabled")
         val QUIET_START = intPreferencesKey("quiet_start_min")
         val QUIET_END = intPreferencesKey("quiet_end_min")
@@ -62,6 +63,7 @@ class Prefs(context: Context) {
 
     val stats: Flow<Stats> = ds.data.map { Stats.parse(it[Keys.STATS_JSON]) }
     val saved: Flow<List<SavedTip>> = ds.data.map { parseSaved(it[Keys.SAVED_JSON]) }
+    val appTheme: Flow<String> = ds.data.map { it[Keys.APP_THEME] ?: "navy" }
     val widgetTheme: Flow<String> = ds.data.map { it[Keys.WIDGET_THEME] ?: "dark" }
     val quietEnabled: Flow<Boolean> = ds.data.map { it[Keys.QUIET_ENABLED] ?: true }
     val quietStartMin: Flow<Int> = ds.data.map { it[Keys.QUIET_START] ?: (23 * 60) }
@@ -180,6 +182,7 @@ class Prefs(context: Context) {
         }
     }
 
+    suspend fun setAppTheme(v: String) { ds.edit { it[Keys.APP_THEME] = v } }
     suspend fun setWidgetTheme(v: String) { ds.edit { it[Keys.WIDGET_THEME] = v } }
     suspend fun setQuietEnabled(v: Boolean) { ds.edit { it[Keys.QUIET_ENABLED] = v } }
     suspend fun setQuietStartMin(v: Int) { ds.edit { it[Keys.QUIET_START] = v } }

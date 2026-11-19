@@ -113,6 +113,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
     val stats by prefs.stats.collectAsState(initial = com.pingai.app.data.Stats())
     val saved by prefs.saved.collectAsState(initial = emptyList())
     val themeId by prefs.widgetTheme.collectAsState(initial = "dark")
+    val appThemeId by prefs.appTheme.collectAsState(initial = "navy")
     val quietOn by prefs.quietEnabled.collectAsState(initial = true)
     val quietStart by prefs.quietStartMin.collectAsState(initial = 23 * 60)
     val quietEnd by prefs.quietEndMin.collectAsState(initial = 7 * 60)
@@ -276,6 +277,27 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                             quietEnd / 60, quietEnd % 60, true).show()
                     }
                 }
+            }
+        }
+
+        // Uygulama teması
+        SectionCard(stringResource(R.string.sec_app_theme)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                com.pingai.app.ui.theme.AppThemes.all.forEach { th ->
+                    ThemeTile(
+                        bg = th.bg, button = th.card, text = th.text, accent = th.accent,
+                        label = if (th.id == "navy") stringResource(R.string.theme_navy)
+                                else stringResource(WidgetThemes.all.first { it.id == th.id }.nameRes),
+                        selected = appThemeId == th.id,
+                        locked = th.pro && !isPro
+                    ) {
+                        scope.launch { prefs.setAppTheme(th.id) }
+                    }
+                }
+            }
+            if (!isPro) {
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.theme_pro_note), color = WinColors.TextDim, fontSize = 13.sp)
             }
         }
 
