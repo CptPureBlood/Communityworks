@@ -11,6 +11,9 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import com.pingai.app.analytics.Track
 
 enum class RewardResult { GRANTED, NOT_READY, DISMISSED }
@@ -50,7 +53,30 @@ object AdGate {
         if (on) preload(c)
     }
 
-    fun adsOn(c: Context): Boolean = AdManager.MASTER_SWITCH && !isPro && userSwitch(c)
+    /** Reklam onayı (UMP/GDPR): onay gerekiyorsa verilmeden reklam istenmez. */
+    fun consentOk(c: Context): Boolean =
+        UserMessagingPlatform.getConsentInformation(c.applicationContext).canRequestAds()
+
+    fun adsOn(c: Context): Boolean = AdManager.MASTER_SWITCH && !isPro && userSwitch(c) && consentOk(c)
+
+    /** Açılışta onay bilgisini günceller; gerekiyorsa onay formunu gösterir. */
+    fun requestConsent(a: Activity) {
+        if (isPro || !AdManager.MASTER_SWITCH) return
+        val info = UserMessagingPlatform.getConsentInformation(a)
+        info.requestConsentInfoUpdate(a, ConsentRequestParameters.Builder().build(), {
+            UserMessagingPlatform.loadAndShowConsentFormIfRequired(a) { _ ->
+                if (info.canRequestAds()) preload(a)
+            }
+        }, { _ -> if (info.canRequestAds()) preload(a) })
+    }
+
+    fun privacyOptionsRequired(c: Context): Boolean =
+        UserMessagingPlatform.getConsentInformation(c.applicationContext).privacyOptionsRequirementStatus ==
+            ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
+
+    fun showPrivacyOptions(a: Activity) {
+        UserMessagingPlatform.showPrivacyOptionsForm(a) { _ -> if (consentOk(a)) preload(a) }
+    }
 
     fun preload(c: Context) {
         if (!adsOn(c)) return

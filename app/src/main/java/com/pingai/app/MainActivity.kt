@@ -61,6 +61,8 @@ class MainActivity : ComponentActivity() {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
+        com.pingai.app.ads.AdGate.requestConsent(this)
+
         lifecycleScope.launch {
             if (Prefs(applicationContext).onboardingDone.first()) {
                 WorkScheduler.ensureScheduled(applicationContext)

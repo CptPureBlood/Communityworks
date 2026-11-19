@@ -339,6 +339,17 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                     })
                 }
             }
+            if (!isPro) {
+                Spacer(Modifier.height(12.dp))
+                val act = context as? Activity
+                if (act != null && com.pingai.app.ads.AdGate.privacyOptionsRequired(app)) {
+                    OutlinedButton(onClick = { com.pingai.app.ads.AdGate.showPrivacyOptions(act) }) {
+                        Text(stringResource(R.string.pref_ad_privacy))
+                    }
+                } else {
+                    Text(stringResource(R.string.ad_privacy_na), color = WinColors.TextDim, fontSize = 12.sp)
+                }
+            }
             Spacer(Modifier.height(12.dp))
             var showTerms by remember { mutableStateOf(false) }
             OutlinedButton(onClick = { showTerms = true }) { Text(stringResource(R.string.terms_open)) }
