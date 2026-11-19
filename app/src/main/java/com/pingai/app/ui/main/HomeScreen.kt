@@ -61,6 +61,7 @@ import com.pingai.app.data.RefreshInterval
 import com.pingai.app.data.SecureKeyStore
 import com.pingai.app.data.Topic
 import com.pingai.app.core.TipActions
+import com.pingai.app.share.ShareCard
 import com.pingai.app.ui.common.QuizOptions
 import com.pingai.app.ui.common.QuizGood
 import com.pingai.app.ui.common.QuizBad
@@ -285,11 +286,7 @@ fun HomeScreen(
                         scope.launch { TipActions.feedback(app, active.id, false); WidgetUpdater.updateAll(app) }
                     }
                     Chip("↗ " + stringResource(R.string.btn_share), selected = false) {
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, TipActions.shareText(active))
-                        }
-                        context.startActivity(Intent.createChooser(send, null))
+                        scope.launch { ShareCard.share(app, active.name, active.shortInfo) }
                     }
                 }
                 Spacer(Modifier.height(12.dp))

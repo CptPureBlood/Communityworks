@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
-import com.pingai.app.core.TipActions
+import com.pingai.app.share.ShareCard
 import com.pingai.app.data.Prefs
 import kotlinx.coroutines.launch
 
@@ -15,11 +15,7 @@ class ShareActivity : ComponentActivity() {
         lifecycleScope.launch {
             val topic = Prefs(applicationContext).activeTopic()
             if (topic != null && topic.hasTip) {
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, TipActions.shareText(topic))
-                }
-                startActivity(Intent.createChooser(send, null))
+                ShareCard.share(applicationContext, topic.name, topic.shortInfo)
             }
             finish()
         }

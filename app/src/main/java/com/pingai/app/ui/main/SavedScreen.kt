@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pingai.app.R
 import com.pingai.app.data.Prefs
+import com.pingai.app.share.ShareCard
 import com.pingai.app.ui.common.Chip
 import com.pingai.app.ui.theme.WinColors
 import com.pingai.app.widget.WidgetUpdater
@@ -83,11 +84,7 @@ fun SavedScreen(onBack: () -> Unit) {
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Chip("↗ " + stringResource(R.string.btn_share), selected = false) {
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, "📚 ${tip.topic}\n\n${tip.info}\n\n— Ping AI")
-                                }
-                                context.startActivity(Intent.createChooser(send, null))
+                                scope.launch { ShareCard.share(app, tip.topic, tip.info) }
                             }
                             Chip("✕ " + stringResource(R.string.saved_remove), selected = false) {
                                 scope.launch { prefs.removeSaved(tip.id); WidgetUpdater.updateAll(app) }
