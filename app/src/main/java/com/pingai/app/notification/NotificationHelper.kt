@@ -79,6 +79,11 @@ object NotificationHelper {
         manager.notify(topic.id.hashCode(), notification)
     }
 
+    /** Bu konunun bildirimini kaldırır (yeni soru geldiğinde veya cevaplandığında). */
+    fun cancelTip(context: Context, topicId: String) {
+        NotificationManagerCompat.from(context).cancel(topicId.hashCode())
+    }
+
     @SuppressLint("MissingPermission")
     fun showUpdateNotification(context: Context, version: String, url: String) {
         val manager = NotificationManagerCompat.from(context)

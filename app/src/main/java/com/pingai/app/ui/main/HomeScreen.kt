@@ -56,6 +56,15 @@ import com.pingai.app.R
 import com.pingai.app.core.LocaleHelper
 import com.pingai.app.core.TipService
 import com.pingai.app.data.AiProvider
+import com.pingai.app.data.Daily
+import com.pingai.app.data.Limits
+import com.pingai.app.ads.AdGate
+import com.pingai.app.ads.RewardResult
+import com.pingai.app.analytics.Track
+import com.pingai.app.ui.common.AnimatedCounter
+import com.pingai.app.ui.common.GoalRing
+import com.pingai.app.ui.common.ShimmerLines
+import androidx.compose.animation.animateContentSize
 import com.pingai.app.data.Prefs
 import com.pingai.app.data.RefreshInterval
 import com.pingai.app.data.SecureKeyStore
@@ -119,8 +128,14 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val app = context.applicationContext
+    val activity = remember(context) {
+        var c = context
+        while (c is android.content.ContextWrapper && c !is Activity) c = c.baseContext
+        c as Activity
+    }
     val prefs = remember { Prefs(app) }
     val scope = rememberCoroutineScope()
+    val daily by prefs.daily.collectAsState(initial = Daily())
 
     val topics by prefs.topics.collectAsState(initial = emptyList())
     val activeId by prefs.activeTopicId.collectAsState(initial = null)
@@ -208,10 +223,15 @@ fun HomeScreen(
                 showTopics = true
             }
             Spacer(Modifier.weight(1f))
-            Text(
-                "🔥 ${stats.effectiveStreak()}  ✅ ${stats.correctStreak}",
-                color = WinColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
-            )
+            GoalRing(daily.answered, Limits.DAILY_GOAL)
+            Spacer(Modifier.width(10.dp))
+            Text("🔥", fontSize = 15.sp)
+            Spacer(Modifier.width(3.dp))
+            AnimatedCounter(stats.effectiveStreak(), WinColors.Text)
+            Spacer(Modifier.width(10.dp))
+            Text("✅", fontSize = 15.sp)
+            Spacer(Modifier.width(3.dp))
+            AnimatedCounter(stats.correctStreak, WinColors.Text)
         }
 
         // Kahraman kart
@@ -221,6 +241,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .animateContentSize()
                 .clip(heroShape)
                 .background(Brush.linearGradient(listOf(WinColors.HeroStart, WinColors.HeroEnd)))
                 .quizGlow(flash, flashColor)
@@ -234,10 +255,10 @@ fun HomeScreen(
             Spacer(Modifier.height(10.dp))
             val tip = active?.shortInfo.orEmpty()
             when {
-                loading && tip.isBlank() -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(22.dp), color = WinColors.Accent, strokeWidth = 2.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.widget_loading), color = WinColors.TextDim)
+                loading && tip.isBlank() -> Column {
+                    ShimmerLines()
+                    Spacer(Modifier.height(10.dp))
+                    Text(stringResource(R.string.widget_loading), color = WinColors.TextDim, fontSize = 13.sp)
                 }
                 tip.isBlank() && lastError != null ->
                     Text(lastError.orEmpty(), color = WinColors.Error, fontSize = 17.sp)
@@ -286,35 +307,71 @@ fun HomeScreen(
                         scope.launch { TipActions.feedback(app, active.id, false); WidgetUpdater.updateAll(app) }
                     }
                     Chip("↗ " + stringResource(R.string.btn_share), selected = false) {
-                        scope.launch { ShareCard.share(app, active.name, active.shortInfo) }
+                        AdGate.showThen(activity, "share", Track.category(app, active.name)) {
+                            scope.launch { ShareCard.share(app, active.name, active.shortInfo) }
+                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                val canRefresh = isPro || active?.shortInfo.isNullOrBlank() || lastError != null
-                Button(
-                    enabled = !loading && canRefresh && waitSec == 0,
-                    onClick = { TipService.launchRefresh(app, notify = false) }
-                ) {
-                    Text(
-                        when {
-                            !canRefresh -> stringResource(R.string.btn_refresh_locked)
-                            waitSec > 0 -> stringResource(R.string.btn_wait, waitSec)
-                            else -> stringResource(R.string.btn_refresh)
+            val limit = if (isPro) Limits.PRO_DAILY else Limits.FREE_DAILY
+            val limitReached = daily.used >= limit
+            val freeNeedsCredit = !isPro && !active?.shortInfo.isNullOrBlank() && lastError == null
+            val adsLeft = Limits.REWARD_ADS_PER_DAY - daily.adsWatched
+            val catName = Track.category(app, active?.name.orEmpty())
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when {
+                    limitReached -> Button(enabled = false, onClick = {}) {
+                        Text(stringResource(R.string.btn_limit_reached, limit))
+                    }
+                    freeNeedsCredit && daily.credits <= 0 -> Button(
+                        enabled = !loading && adsLeft > 0,
+                        onClick = {
+                            AdGate.showRewarded(activity, catName) { r ->
+                                when (r) {
+                                    RewardResult.GRANTED -> scope.launch {
+                                        if (prefs.grantRewardAd()) {
+                                            Track.event(app, "ad_rewarded", "category" to catName)
+                                            Toast.makeText(activity, R.string.reward_granted, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    RewardResult.NOT_READY -> Toast.makeText(activity, R.string.ad_not_ready, Toast.LENGTH_SHORT).show()
+                                    RewardResult.DISMISSED -> {}
+                                }
+                            }
                         }
-                    )
+                    ) {
+                        Text(if (adsLeft > 0) stringResource(R.string.btn_watch_ad, Limits.CREDITS_PER_AD) else stringResource(R.string.btn_no_ad_left))
+                    }
+                    else -> Button(
+                        enabled = !loading && waitSec == 0,
+                        onClick = {
+                            scope.launch {
+                                if (!freeNeedsCredit || prefs.useCredit()) TipService.launchRefresh(app, notify = false)
+                            }
+                        }
+                    ) {
+                        Text(if (waitSec > 0) stringResource(R.string.btn_wait, waitSec) else stringResource(R.string.btn_refresh))
+                    }
                 }
                 if (active != null && active.hasTip && !active.awaitingAnswer) {
                     OutlinedButton(onClick = {
-                        context.startActivity(
-                            Intent(context, DetailActivity::class.java)
-                                .putExtra(DetailActivity.EXTRA_TOPIC_ID, active.id)
-                        )
+                        AdGate.showThen(activity, "detail", catName) {
+                            context.startActivity(
+                                Intent(context, DetailActivity::class.java)
+                                    .putExtra(DetailActivity.EXTRA_TOPIC_ID, active.id)
+                            )
+                        }
                     }) { Text(stringResource(R.string.btn_explain)) }
                 }
             }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.daily_status, daily.used, limit) +
+                    if (!isPro) "  ·  " + stringResource(R.string.credits_status, daily.credits) else "",
+                color = WinColors.TextDim, fontSize = 12.sp
+            )
         }
 
     }
@@ -338,11 +395,14 @@ fun HomeScreen(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 topics.forEach { t ->
                     Chip(t.name, selected = t.id == active?.id) {
-                        scope.launch {
-                            prefs.setActiveTopicId(t.id)
-                            WidgetUpdater.updateAll(app)
-                        }
                         showTopics = false
+                        if (t.id == active?.id) return@Chip
+                        AdGate.showThen(activity, "topic_change", Track.category(app, t.name)) {
+                            scope.launch {
+                                prefs.setActiveTopicId(t.id)
+                                WidgetUpdater.updateAll(app)
+                            }
+                        }
                     }
                 }
             }
@@ -384,6 +444,7 @@ fun HomeScreen(
                         val name = topicDraft.trim()
                         editing = null
                         showTopics = false
+                        Track.topicEvent(app, "topic_selected", name, "mode" to (mode ?: ""))
                         scope.launch {
                             if (mode == "add") {
                                 val t = Topic(id = UUID.randomUUID().toString(), name = name)

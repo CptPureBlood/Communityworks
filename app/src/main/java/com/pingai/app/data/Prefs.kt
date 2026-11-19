@@ -1,6 +1,7 @@
 package com.pingai.app.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -41,6 +42,11 @@ class Prefs(context: Context) {
         val UPDATE_URL = stringPreferencesKey("update_url")
         val UPDATE_LAST_CHECK = longPreferencesKey("update_last_check")
         val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
+        val D_DATE = stringPreferencesKey("daily_date")
+        val D_USED = intPreferencesKey("daily_used")
+        val D_CREDITS = intPreferencesKey("daily_credits")
+        val D_ADS = intPreferencesKey("daily_ads")
+        val D_ANSWERED = intPreferencesKey("daily_answered")
     }
 
     val onboardingDone: Flow<Boolean> = ds.data.map { it[Keys.ONBOARDING_DONE] ?: false }
@@ -65,6 +71,51 @@ class Prefs(context: Context) {
     val updateLastCheck: Flow<Long> = ds.data.map { it[Keys.UPDATE_LAST_CHECK] ?: 0L }
     val updateNotified: Flow<String> = ds.data.map { it[Keys.UPDATE_NOTIFIED] ?: "" }
     val optionCount: Flow<Int> = ds.data.map { (it[Keys.OPTION_COUNT] ?: 2).coerceIn(2, 4) }
+
+    val daily: Flow<Daily> = ds.data.map { p ->
+        if (p[Keys.D_DATE] == java.time.LocalDate.now().toString())
+            Daily(p[Keys.D_USED] ?: 0, p[Keys.D_CREDITS] ?: 0, p[Keys.D_ADS] ?: 0, p[Keys.D_ANSWERED] ?: 0)
+        else Daily()
+    }
+
+    private fun MutablePreferences.rollDay() {
+        val today = java.time.LocalDate.now().toString()
+        if (this[Keys.D_DATE] != today) {
+            this[Keys.D_DATE] = today
+            this[Keys.D_USED] = 0; this[Keys.D_CREDITS] = 0; this[Keys.D_ADS] = 0; this[Keys.D_ANSWERED] = 0
+        }
+    }
+
+    /** Başarıyla alınan her yeni soru günlük hakkı 1 azaltır. */
+    suspend fun consumeQuota(n: Int = 1) {
+        ds.edit { it.rollDay(); it[Keys.D_USED] = (it[Keys.D_USED] ?: 0) + n }
+    }
+
+    /** Ücretsizde elle yenileme için 1 soru hakkı harcar. Hak yoksa false. */
+    suspend fun useCredit(): Boolean {
+        var ok = false
+        ds.edit {
+            it.rollDay()
+            val c = it[Keys.D_CREDITS] ?: 0
+            if (c > 0) { it[Keys.D_CREDITS] = c - 1; ok = true }
+        }
+        return ok
+    }
+
+    /** Ödüllü reklam izlendi: +2 hak (günde en fazla 5 reklam). */
+    suspend fun grantRewardAd(): Boolean {
+        var ok = false
+        ds.edit {
+            it.rollDay()
+            val n = it[Keys.D_ADS] ?: 0
+            if (n < Limits.REWARD_ADS_PER_DAY) {
+                it[Keys.D_ADS] = n + 1
+                it[Keys.D_CREDITS] = (it[Keys.D_CREDITS] ?: 0) + Limits.CREDITS_PER_AD
+                ok = true
+            }
+        }
+        return ok
+    }
 
     val topics: Flow<List<Topic>> = ds.data.map { p -> parseTopics(p[Keys.TOPICS_JSON]) }
 
@@ -178,6 +229,8 @@ class Prefs(context: Context) {
                 bestCorrect = maxOf(st.bestCorrect, if (correct) st.correctStreak + 1 else 0)
             )
             p[Keys.STATS_JSON] = upd.toJson()
+            p.rollDay()
+            p[Keys.D_ANSWERED] = (p[Keys.D_ANSWERED] ?: 0) + 1
         }
     }
 

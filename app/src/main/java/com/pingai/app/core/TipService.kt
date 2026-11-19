@@ -2,6 +2,8 @@ package com.pingai.app.core
 
 import android.content.Context
 import com.pingai.app.R
+import com.pingai.app.analytics.Track
+import com.pingai.app.data.Limits
 import com.pingai.app.data.Prefs
 import com.pingai.app.data.SecureKeyStore
 import com.pingai.app.network.AiException
@@ -41,7 +43,7 @@ data class RefreshStatus(val loading: Boolean = false, val error: String? = null
  */
 object TipService {
 
-    enum class Outcome { SUCCESS, FAILED, SKIPPED }
+    enum class Outcome { SUCCESS, FAILED, SKIPPED, LIMIT }
 
     private const val TOTAL_TIMEOUT_MS = 45_000L
 
@@ -69,7 +71,7 @@ object TipService {
         val outcome = refreshNow(app, notify)
         if (outcome == Outcome.SKIPPED) return
         val interval = Prefs(app).refreshIntervalMinutes.first()
-        val delayMin = if (outcome == Outcome.SUCCESS) interval else min(interval, 15)
+        val delayMin = if (outcome == Outcome.SUCCESS || outcome == Outcome.LIMIT) interval else min(interval, 15)
         WorkScheduler.scheduleNext(app, delayMin, slot)
     }
 
@@ -112,6 +114,12 @@ object TipService {
                 else topics.filter { it.id == activeId }.ifEmpty { topics.take(1) }
                 if (targets.isEmpty()) {
                     return@withTimeout fail(prefs, loc.getString(R.string.widget_no_topic))
+                }
+
+                val limit = if (isPro) Limits.PRO_DAILY else Limits.FREE_DAILY
+                if (prefs.daily.first().used >= limit) {
+                    _status.value = RefreshStatus()
+                    return@withTimeout Outcome.LIMIT
                 }
 
                 val optionCount = if (isPro) prefs.optionCount.first() else 2
@@ -164,6 +172,10 @@ object TipService {
                             // Kullanıcının bu arada değiştirdiği listeler korunur.
                             updated.copy(avoid = it.avoid, liked = it.liked, name = it.name)
                         }
+                        if (!quiz.review) prefs.consumeQuota(1)
+                        Track.topicEvent(app, "quiz_shown", topic.name, "review" to quiz.review.toString())
+                        // Eski bildirim her zaman kaldırılır; yenisi yalnızca izin varsa gösterilir.
+                        NotificationHelper.cancelTip(app, topic.id)
                         if (notifyOn) NotificationHelper.showTipNotification(app, updated)
                     } else if (firstError == null) {
                         firstError = result.exceptionOrNull()

@@ -1,7 +1,9 @@
 package com.pingai.app.core
 
 import android.content.Context
+import com.pingai.app.analytics.Track
 import com.pingai.app.data.Prefs
+import com.pingai.app.notification.NotificationHelper
 import com.pingai.app.data.MissedQ
 import com.pingai.app.data.SavedTip
 import com.pingai.app.data.Topic
@@ -28,6 +30,8 @@ object TipActions {
             )
         }
         Haptics.answer(app, correct)
+        NotificationHelper.cancelTip(app, topic.id)
+        Track.topicEvent(app, "quiz_answered", topic.name, "result" to if (correct) "correct" else "wrong")
         correct
     }
 

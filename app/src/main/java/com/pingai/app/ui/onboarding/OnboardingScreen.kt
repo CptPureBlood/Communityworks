@@ -190,7 +190,12 @@ fun OnboardingScreen() {
                         Chip(label, selected = lang == code) { lang = code }
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
+                var showTerms by remember { mutableStateOf(false) }
+                Text(stringResource(R.string.onb_terms_note), color = WinColors.TextDim, fontSize = 13.sp)
+                androidx.compose.material3.TextButton(onClick = { showTerms = true }) { Text(stringResource(R.string.terms_open)) }
+                if (showTerms) com.pingai.app.ui.main.TermsDialog { showTerms = false }
+                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = { step = 2 }) { Text(stringResource(R.string.onb_back)) }
                     Button(
@@ -212,6 +217,8 @@ fun OnboardingScreen() {
                                 prefs.setRefreshIntervalMinutes(720)
                                 prefs.setNotificationsEnabled(true)
                                 prefs.setOnboardingDone(true)
+                                com.pingai.app.analytics.Track.topicEvent(app, "topic_selected", t.name, "mode" to "onboarding")
+                                com.pingai.app.analytics.Track.refreshLanguages(app)
                                 TipService.launchRefresh(app, notify = false, force = true)
                                 WidgetUpdater.updateAll(app)
                             }

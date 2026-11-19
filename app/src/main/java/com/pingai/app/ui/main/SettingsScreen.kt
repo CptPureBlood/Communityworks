@@ -235,7 +235,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val effective = LocaleHelper.resolveContentLanguage(contentLang)
                 CONTENT_LANGUAGES.forEach { (code, label) ->
-                    Chip(label, selected = effective == code) { scope.launch { prefs.setContentLanguage(code) } }
+                    Chip(label, selected = effective == code) { scope.launch { prefs.setContentLanguage(code); com.pingai.app.analytics.Track.refreshLanguages(app) } }
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -247,6 +247,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                     Chip(label, selected = saved == code) {
                         if (saved != code) {
                             LocaleHelper.save(context, code)
+                            com.pingai.app.analytics.Track.setUiLang(app, code)
                             (context as? Activity)?.recreate()
                         }
                     }
@@ -309,6 +310,39 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                     ) { scope.launch { prefs.setOptionCount(n) } }
                 }
             }
+        }
+
+        // Gizlilik ve reklamlar
+        SectionCard(stringResource(R.string.sec_privacy)) {
+            var analyticsOn by remember { mutableStateOf(com.pingai.app.analytics.Track.isOn(app)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.pref_analytics), color = WinColors.Text)
+                    Text(stringResource(R.string.pref_analytics_desc), color = WinColors.TextDim, fontSize = 12.sp)
+                }
+                Switch(checked = analyticsOn, onCheckedChange = {
+                    analyticsOn = it
+                    com.pingai.app.analytics.Track.setOn(app, it)
+                })
+            }
+            if (!isPro) {
+                Spacer(Modifier.height(14.dp))
+                var adsOn by remember { mutableStateOf(com.pingai.app.ads.AdGate.userSwitch(app)) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.pref_test_ads), color = WinColors.Text)
+                        Text(stringResource(R.string.pref_test_ads_desc), color = WinColors.TextDim, fontSize = 12.sp)
+                    }
+                    Switch(checked = adsOn, onCheckedChange = {
+                        adsOn = it
+                        com.pingai.app.ads.AdGate.setUserSwitch(app, it)
+                    })
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            var showTerms by remember { mutableStateOf(false) }
+            OutlinedButton(onClick = { showTerms = true }) { Text(stringResource(R.string.terms_open)) }
+            if (showTerms) TermsDialog { showTerms = false }
         }
 
         // Pro

@@ -41,6 +41,16 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(LocaleHelper.wrap(newBase))
     }
 
+    override fun onStart() {
+        super.onStart()
+        com.pingai.app.ads.AdGate.onStart(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        com.pingai.app.ads.AdGate.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -67,15 +77,21 @@ class MainActivity : ComponentActivity() {
                     when (onboardingDone) {
                         null -> {}
                         false -> OnboardingScreen()
-                        true -> when (page) {
-                            "saved" -> SavedScreen { page = "home" }
-                            "ach" -> AchievementsScreen { page = "home" }
-                            "settings" -> SettingsScreen { page = "home" }
-                            else -> HomeScreen(
-                                onOpenSaved = { page = "saved" },
-                                onOpenAchievements = { page = "ach" },
-                                onOpenSettings = { page = "settings" }
-                            )
+                        true -> androidx.compose.animation.Crossfade(
+                            targetState = page,
+                            animationSpec = androidx.compose.animation.core.tween(220),
+                            label = "page"
+                        ) { p ->
+                            when (p) {
+                                "saved" -> SavedScreen { page = "home" }
+                                "ach" -> AchievementsScreen { page = "home" }
+                                "settings" -> SettingsScreen { page = "home" }
+                                else -> HomeScreen(
+                                    onOpenSaved = { page = "saved" },
+                                    onOpenAchievements = { page = "ach" },
+                                    onOpenSettings = { page = "settings" }
+                                )
+                            }
                         }
                     }
                 }

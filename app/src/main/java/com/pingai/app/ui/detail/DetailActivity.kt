@@ -137,10 +137,13 @@ private fun DetailScreen(topicId: String?) {
     }
 
     LaunchedEffect(isPro) {
-        if (!isPro) {
+        if (!isPro && com.pingai.app.ads.AdGate.adsOn(context)) {
             delay(6000)
-            showAd = true
+            showAd = com.pingai.app.ads.AdGate.adsOn(context)
         }
+    }
+    LaunchedEffect(topic?.id) {
+        topic?.let { com.pingai.app.analytics.Track.topicEvent(app, "detail_opened", it.name) }
     }
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().quizGlow(flash, flashColor)) {

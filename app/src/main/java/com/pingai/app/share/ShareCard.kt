@@ -34,10 +34,32 @@ object ShareCard {
     private const val H = 1350
     private const val MARGIN = 96f
 
+    private class CardColors(val bg: Int, val accent: Int, val text: Int, val dim: Int)
+
+    /** Her paylaşımda farklı bir renk düzeni (üst üste aynısı seçilmez). */
+    private val PALETTES = listOf(
+        CardColors(0xFF0B2545.toInt(), 0xFF5BC0EB.toInt(), 0xFFFFFFFF.toInt(), 0xFFA9C4DE.toInt()), // okyanus
+        CardColors(0xFF1B1035.toInt(), 0xFFB388FF.toInt(), 0xFFFFFFFF.toInt(), 0xFFC4B5E0.toInt()), // mor
+        CardColors(0xFF3B0D1E.toInt(), 0xFFFF8A5B.toInt(), 0xFFFFFFFF.toInt(), 0xFFE0B8A8.toInt()), // gün batımı
+        CardColors(0xFF0D2B1F.toInt(), 0xFF52D6A3.toInt(), 0xFFFFFFFF.toInt(), 0xFFA8D5C2.toInt()), // orman
+        CardColors(0xFF3A0F2B.toInt(), 0xFFFF6FB5.toInt(), 0xFFFFFFFF.toInt(), 0xFFE0B0CC.toInt()), // gül
+        CardColors(0xFF2E2205.toInt(), 0xFFFFC53D.toInt(), 0xFFFFFFFF.toInt(), 0xFFE0CC9A.toInt()), // kehribar
+        CardColors(0xFF05282B.toInt(), 0xFF2EE6D6.toInt(), 0xFFFFFFFF.toInt(), 0xFFA0D8D3.toInt()), // turkuaz
+        CardColors(0xFFEEF2FF.toInt(), 0xFF3F51B5.toInt(), 0xFF1B1F3B.toInt(), 0xFF5C6288.toInt())  // açık indigo
+    )
+    private var lastPalette = -1
+
+    private fun pickPalette(): CardColors {
+        var i: Int
+        do { i = kotlin.random.Random.nextInt(PALETTES.size) } while (i == lastPalette)
+        lastPalette = i
+        return PALETTES[i]
+    }
+
     suspend fun share(context: Context, topic: String, info: String) {
         val app = context.applicationContext
-        val prefs = Prefs(app)
-        val theme = WidgetThemes.byId(prefs.widgetTheme.first(), prefs.isPro.first())
+        com.pingai.app.analytics.Track.topicEvent(app, "share_tapped", topic)
+        val theme = pickPalette()
         val uri = withContext(Dispatchers.Default) {
             val bmp = render(app, theme, topic, info)
             val dir = File(app.cacheDir, "shared").apply { mkdirs() }
@@ -56,7 +78,7 @@ object ShareCard {
         app.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    private fun render(ctx: Context, theme: WidgetTheme, topic: String, info: String): Bitmap {
+    private fun render(ctx: Context, theme: CardColors, topic: String, info: String): Bitmap {
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)

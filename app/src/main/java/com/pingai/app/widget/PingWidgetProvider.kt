@@ -9,6 +9,7 @@ import com.pingai.app.core.TipActions
 import com.pingai.app.work.WorkScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class PingWidgetProvider : AppWidgetProvider() {
@@ -32,7 +33,19 @@ class PingWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         val app = context.applicationContext
         when (intent.action) {
-            ACTION_REFRESH -> WorkScheduler.runManual(app)
+            ACTION_REFRESH -> run(app) {
+                val prefs = com.pingai.app.data.Prefs(app)
+                if (com.pingai.app.core.TipService.cooldownRemainingMs() > 0L) return@run
+                val pro = prefs.isPro.first()
+                val noTipYet = prefs.activeTopic()?.shortInfo.isNullOrBlank()
+                if (pro || noTipYet || prefs.useCredit()) {
+                    WorkScheduler.runManual(app)
+                } else {
+                    // Ücretsizde yeni soru için hak gerekir: uygulamada reklam izleyerek kazanılır.
+                    prefs.setLastError(com.pingai.app.core.LocaleHelper.wrap(app).getString(com.pingai.app.R.string.err_no_credit))
+                    WidgetUpdater.updateAll(app)
+                }
+            }
             ACTION_ANSWER -> {
                 val index = intent.getIntExtra(EXTRA_INDEX, -1)
                 val topicId = intent.getStringExtra(EXTRA_TOPIC_ID)

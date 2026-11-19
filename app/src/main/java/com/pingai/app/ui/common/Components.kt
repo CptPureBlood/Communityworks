@@ -1,16 +1,40 @@
 package com.pingai.app.ui.common
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -44,6 +68,9 @@ fun Chip(
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(50)
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, spring(dampingRatio = 0.6f, stiffness = 500f), label = "chip")
     Text(
         text = label,
         color = when {
@@ -54,10 +81,11 @@ fun Chip(
         fontSize = 15.sp,
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(shape)
             .background(if (selected) WinColors.Accent.copy(alpha = 0.16f) else WinColors.Card)
             .border(BorderStroke(1.dp, if (selected) WinColors.Accent else WinColors.Stroke), shape)
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp)
     )
 }
@@ -169,21 +197,78 @@ val QuizBad = Color(0xFFE5484D)
 fun QuizOptions(options: List<String>, onAnswer: (Int) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEachIndexed { i, label ->
-            val shape = RoundedCornerShape(14.dp)
-            Text(
-                text = label,
-                color = WinColors.Text,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(shape)
-                    .background(Color(0x33FFFFFF))
-                    .border(BorderStroke(1.dp, Color(0x44FFFFFF)), shape)
-                    .clickable { onAnswer(i) }
-                    .padding(horizontal = 16.dp, vertical = 13.dp)
+            OptionButton(i, label) { onAnswer(i) }
+        }
+    }
+}
+
+/** Sırayla beliren, basınca hafifçe küçülen şık düğmesi. */
+@Composable
+private fun OptionButton(index: Int, label: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, spring(dampingRatio = 0.6f, stiffness = 500f), label = "press")
+    var shown by remember(label) { mutableStateOf(false) }
+    LaunchedEffect(label) { delay(70L * index); shown = true }
+    val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(280), label = "in")
+    val lift by animateFloatAsState(if (shown) 0f else 14f, tween(280), label = "lift")
+    Text(
+        text = label,
+        color = WinColors.Text,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha; translationY = lift }
+            .clip(shape)
+            .background(Color(0x33FFFFFF))
+            .border(BorderStroke(1.dp, Color(0x44FFFFFF)), shape)
+            .clickable(interactionSource = source, indication = null, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 13.dp)
+    )
+}
+
+/** Yüklenirken metin satırlarını andıran, nabız gibi atan iskelet. */
+@Composable
+fun ShimmerLines() {
+    val t = rememberInfiniteTransition(label = "shimmer")
+    val a by t.animateFloat(0.18f, 0.5f, infiniteRepeatable(tween(850), RepeatMode.Reverse), label = "a")
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(1f, 0.92f, 0.6f).forEach { w ->
+            Box(
+                Modifier.fillMaxWidth(w).height(16.dp).clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = a))
             )
         }
+    }
+}
+
+/** Sayı değişince aşağıdan yukarı kayarak değişen sayaç. */
+@Composable
+fun AnimatedCounter(value: Int, color: Color, fontSize: androidx.compose.ui.unit.TextUnit = 15.sp) {
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
+        label = "counter"
+    ) { v -> Text(v.toString(), color = color, fontWeight = FontWeight.SemiBold, fontSize = fontSize) }
+}
+
+/** Günlük hedef halkası: bugün cevaplanan soru / hedef. */
+@Composable
+fun GoalRing(done: Int, goal: Int) {
+    val prog by animateFloatAsState((done.toFloat() / goal).coerceIn(0f, 1f), tween(700), label = "goal")
+    val complete = done >= goal
+    Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val st = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+            val inset = 2.dp.toPx()
+            val sz = androidx.compose.ui.geometry.Size(size.width - 2 * inset, size.height - 2 * inset)
+            val tl = androidx.compose.ui.geometry.Offset(inset, inset)
+            drawArc(Color(0x33FFFFFF), 0f, 360f, false, tl, sz, style = st)
+            drawArc(if (complete) QuizGood else WinColors.Accent, -90f, 360f * prog, false, tl, sz, style = st)
+        }
+        Text(if (complete) "✓" else done.toString(), color = WinColors.Text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
