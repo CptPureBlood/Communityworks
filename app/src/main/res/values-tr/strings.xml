@@ -126,4 +126,21 @@
     <string name="pref_choices">Şık sayısı (Pro)</string>
     <string name="err_format">Yapay zekâ beklenmedik bir yanıt verdi. Yenile’ye dokunup tekrar dene.</string>
     <string name="btn_back">Geri</string>
+    <string name="update_available">Güncelleme var: v%1$s</string>
+    <string name="update_download">İndir</string>
+    <string name="update_notif_title">Ping AI güncellemesi</string>
+    <string name="update_notif_text">v%1$s sürümü indirilmeye hazır.</string>
+    <string name="sec_badges">Rozetler (%1$d/%2$d)</string>
+    <string name="badge_first">İlk cevap</string>
+    <string name="badge_streak3">3 gün seri</string>
+    <string name="badge_streak7">7 gün seri</string>
+    <string name="badge_streak30">30 gün seri</string>
+    <string name="badge_correct25">25 doğru</string>
+    <string name="badge_correct100">100 doğru</string>
+    <string name="badge_answered50">50 cevap</string>
+    <string name="badge_answered100">100 cevap</string>
+    <string name="badge_answered500">500 cevap</string>
+    <string name="freeze_ready">🧊 Seri koruma hazır (ayda bir kaçırılan günü kurtarır)</string>
+    <string name="freeze_used">🧊 Seri koruma bu ay kullanıldı</string>
+    <string name="review_prefix">Tekrar</string>
 </resources>

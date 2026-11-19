@@ -39,9 +39,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk PingAI.apk
+          VER=$(cat app/version.txt | tr -d '[:space:]')
           gh release create "build-${{ github.run_number }}" PingAI.apk \
-            --title "Ping AI build ${{ github.run_number }}" \
-            --notes "Debug APK (build ${{ github.run_number }}). Install over the previous one." \
+            --title "Ping AI v${VER}" \
+            --notes "Ping AI v${VER} (build ${{ github.run_number }}). Install over the previous one." \
             --latest
 
       - uses: actions/upload-artifact@v4

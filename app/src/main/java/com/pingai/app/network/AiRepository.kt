@@ -12,7 +12,8 @@ data class Quiz(
     /** Şıklar karıştırılmış; correctIdx doğru olanın yeri. */
     val options: List<String>,
     val correctIdx: Int,
-    val info: String
+    val info: String,
+    val review: Boolean = false
 )
 
 object AiRepository {

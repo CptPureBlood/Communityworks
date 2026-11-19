@@ -2,6 +2,7 @@ package com.pingai.app.core
 
 import android.content.Context
 import com.pingai.app.data.Prefs
+import com.pingai.app.data.MissedQ
 import com.pingai.app.data.SavedTip
 import com.pingai.app.data.Topic
 import com.pingai.app.widget.WidgetUpdater
@@ -21,6 +22,12 @@ object TipActions {
         val correct = index == topic.correctIdx
         prefs.updateTopic(topic.id) { it.copy(answeredIdx = index) }
         prefs.recordAnswer(correct)
+        if (!correct) {
+            prefs.addMissed(
+                MissedQ(topic.id, topic.name, topic.title, topic.question, topic.options, topic.correctIdx, topic.shortInfo)
+            )
+        }
+        Haptics.answer(app, correct)
         correct
     }
 

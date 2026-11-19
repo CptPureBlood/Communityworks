@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -196,4 +198,57 @@ fun ResultLine(topic: com.pingai.app.data.Topic) {
         fontWeight = FontWeight.Bold,
         fontSize = 15.sp
     )
+}
+
+/** Kenarlardan ortaya doğru saydamlaşan parlama (flash: 1 → 0). */
+fun Modifier.quizGlow(flash: Float, color: Color): Modifier = this.drawBehind {
+    if (flash > 0.01f) {
+        drawRect(
+            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                0f to Color.Transparent,
+                0.45f to Color.Transparent,
+                1f to color.copy(alpha = (flash * 0.9f).coerceIn(0f, 1f)),
+                radius = size.maxDimension * 0.62f
+            )
+        )
+    }
+}
+
+/** Widget teması için küçük örnek kart: arka plan, vurgu rengi, metin satırları ve şık düğmeleri. */
+@Composable
+fun ThemeTile(
+    bg: Color, button: Color, text: Color, accent: Color,
+    label: String, selected: Boolean, locked: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(enabled = !locked, onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .size(width = 104.dp, height = 78.dp)
+                .clip(shape)
+                .background(bg)
+                .border(BorderStroke(if (selected) 2.dp else 1.dp, if (selected) WinColors.Accent else WinColors.Stroke), shape)
+                .padding(9.dp)
+        ) {
+            Box(Modifier.size(width = 34.dp, height = 5.dp).clip(RoundedCornerShape(3.dp)).background(accent))
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.fillMaxWidth(0.9f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(text.copy(alpha = 0.75f)))
+            Spacer(Modifier.height(3.dp))
+            Box(Modifier.fillMaxWidth(0.6f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(text.copy(alpha = 0.45f)))
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.fillMaxWidth().height(11.dp).clip(RoundedCornerShape(5.dp)).background(button))
+            Spacer(Modifier.height(3.dp))
+            Box(Modifier.fillMaxWidth().height(11.dp).clip(RoundedCornerShape(5.dp)).background(button))
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            label + if (locked) " 🔒" else "",
+            color = if (selected) WinColors.Accent else if (locked) WinColors.TextDim.copy(alpha = 0.6f) else WinColors.Text,
+            fontSize = 13.sp
+        )
+    }
 }

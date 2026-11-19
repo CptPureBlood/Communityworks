@@ -57,6 +57,7 @@ import com.pingai.app.ui.common.QuizGood
 import com.pingai.app.ui.common.QuizOptions
 import com.pingai.app.ui.common.ResultLine
 import com.pingai.app.ui.common.rememberQuizFlash
+import com.pingai.app.ui.common.quizGlow
 import com.pingai.app.ui.theme.PingAiTheme
 import com.pingai.app.ui.theme.WinColors
 import com.pingai.app.widget.WidgetUpdater
@@ -142,9 +143,7 @@ private fun DetailScreen(topicId: String?) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().statusBarsPadding().drawBehind {
-        drawRect(flashColor.copy(alpha = flash * 0.5f))
-    }) {
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding().quizGlow(flash, flashColor)) {
         Column(
             modifier = Modifier
                 .weight(1f)

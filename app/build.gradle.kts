@@ -13,7 +13,7 @@ android {
         targetSdk = 34
         // Her GitHub derlemesinde artar; böylece güncelleme olarak kurulabilir.
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = "1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
+        versionName = file("version.txt").readText().trim()
     }
 
     // Sabit imza: her derleme aynı anahtarla imzalanır -> eski uygulamanın üstüne güncelleme çalışır.

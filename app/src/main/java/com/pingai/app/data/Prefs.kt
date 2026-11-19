@@ -36,6 +36,11 @@ class Prefs(context: Context) {
         val QUIET_START = intPreferencesKey("quiet_start_min")
         val QUIET_END = intPreferencesKey("quiet_end_min")
         val OPTION_COUNT = intPreferencesKey("option_count")
+        val MISSED_JSON = stringPreferencesKey("missed_json")
+        val UPDATE_VERSION = stringPreferencesKey("update_version")
+        val UPDATE_URL = stringPreferencesKey("update_url")
+        val UPDATE_LAST_CHECK = longPreferencesKey("update_last_check")
+        val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
     }
 
     val onboardingDone: Flow<Boolean> = ds.data.map { it[Keys.ONBOARDING_DONE] ?: false }
@@ -55,6 +60,10 @@ class Prefs(context: Context) {
     val quietEnabled: Flow<Boolean> = ds.data.map { it[Keys.QUIET_ENABLED] ?: true }
     val quietStartMin: Flow<Int> = ds.data.map { it[Keys.QUIET_START] ?: (23 * 60) }
     val quietEndMin: Flow<Int> = ds.data.map { it[Keys.QUIET_END] ?: (7 * 60) }
+    val updateVersion: Flow<String> = ds.data.map { it[Keys.UPDATE_VERSION] ?: "" }
+    val updateUrl: Flow<String> = ds.data.map { it[Keys.UPDATE_URL] ?: "" }
+    val updateLastCheck: Flow<Long> = ds.data.map { it[Keys.UPDATE_LAST_CHECK] ?: 0L }
+    val updateNotified: Flow<String> = ds.data.map { it[Keys.UPDATE_NOTIFIED] ?: "" }
     val optionCount: Flow<Int> = ds.data.map { (it[Keys.OPTION_COUNT] ?: 2).coerceIn(2, 4) }
 
     val topics: Flow<List<Topic>> = ds.data.map { p -> parseTopics(p[Keys.TOPICS_JSON]) }
@@ -143,14 +152,19 @@ class Prefs(context: Context) {
         return if (s < e) c in s until e else (c >= s || c < e)
     }
 
-    /** İlk cevap sayılır; seri ve doğruluk güncellenir. */
+    /** İlk cevap sayılır; seri ve doğruluk güncellenir. Ayda bir kaçırılan gün seri korumayla kurtarılır. */
     suspend fun recordAnswer(correct: Boolean) {
         ds.edit { p ->
             val st = Stats.parse(p[Keys.STATS_JSON])
             val today = java.time.LocalDate.now()
-            val newStreak = when (st.lastDay) {
-                today.toString() -> st.streak.coerceAtLeast(1)
-                today.minusDays(1).toString() -> st.streak + 1
+            var freezeMonth = st.freezeMonth
+            val newStreak = when {
+                st.lastDay == today.toString() -> st.streak.coerceAtLeast(1)
+                st.lastDay == today.minusDays(1).toString() -> st.streak + 1
+                st.lastDay == today.minusDays(2).toString() && st.freezeAvailable() -> {
+                    freezeMonth = java.time.YearMonth.now().toString()
+                    st.streak + 1
+                }
                 else -> 1
             }
             val upd = st.copy(
@@ -158,11 +172,47 @@ class Prefs(context: Context) {
                 best = maxOf(st.best, newStreak),
                 lastDay = today.toString(),
                 answered = st.answered + 1,
-                correct = st.correct + if (correct) 1 else 0
+                correct = st.correct + if (correct) 1 else 0,
+                freezeMonth = freezeMonth
             )
             p[Keys.STATS_JSON] = upd.toJson()
         }
     }
+
+    // ---- Yanlış bilinen sorular (tekrar için, token harcamaz)
+    private fun parseMissed(raw: String?): List<MissedQ> = try {
+        val arr = JSONArray(raw ?: "[]")
+        (0 until arr.length()).map { MissedQ.fromJson(arr.getJSONObject(it)) }
+    } catch (e: Exception) { emptyList() }
+
+    private fun encodeMissed(list: List<MissedQ>): String {
+        val arr = JSONArray(); list.forEach { arr.put(it.toJson()) }; return arr.toString()
+    }
+
+    suspend fun addMissed(q: MissedQ) {
+        ds.edit { p ->
+            val cur = parseMissed(p[Keys.MISSED_JSON]).filterNot { it.question == q.question }.toMutableList()
+            cur.add(q)
+            p[Keys.MISSED_JSON] = encodeMissed(cur.takeLast(40))
+        }
+    }
+
+    /** Bu konunun en eski yanlış sorusunu listeden çıkarıp döndürür. */
+    suspend fun takeMissed(topicId: String): MissedQ? {
+        var taken: MissedQ? = null
+        ds.edit { p ->
+            val cur = parseMissed(p[Keys.MISSED_JSON]).toMutableList()
+            val idx = cur.indexOfFirst { it.topicId == topicId }
+            if (idx >= 0) { taken = cur.removeAt(idx); p[Keys.MISSED_JSON] = encodeMissed(cur) }
+        }
+        return taken
+    }
+
+    suspend fun setUpdateInfo(version: String, url: String) {
+        ds.edit { it[Keys.UPDATE_VERSION] = version; it[Keys.UPDATE_URL] = url }
+    }
+    suspend fun setUpdateLastCheck(v: Long) { ds.edit { it[Keys.UPDATE_LAST_CHECK] = v } }
+    suspend fun setUpdateNotified(v: String) { ds.edit { it[Keys.UPDATE_NOTIFIED] = v } }
 
     /** Kaydedilmişse çıkarır, değilse ekler. true = artık kayıtlı. */
     suspend fun toggleSaved(tip: SavedTip): Boolean {

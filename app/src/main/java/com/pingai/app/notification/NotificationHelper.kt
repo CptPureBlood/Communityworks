@@ -78,4 +78,24 @@ object NotificationHelper {
         val notification = builder.build()
         manager.notify(topic.id.hashCode(), notification)
     }
+
+    @SuppressLint("MissingPermission")
+    fun showUpdateNotification(context: Context, version: String, url: String) {
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return
+        val loc = LocaleHelper.wrap(context)
+        val pending = PendingIntent.getActivity(
+            context, 7001,
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val n = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(loc.getString(R.string.update_notif_title))
+            .setContentText(loc.getString(R.string.update_notif_text, version))
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+        manager.notify(7001, n)
+    }
 }

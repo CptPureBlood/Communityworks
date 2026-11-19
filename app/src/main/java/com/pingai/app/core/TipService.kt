@@ -6,6 +6,8 @@ import com.pingai.app.data.Prefs
 import com.pingai.app.data.SecureKeyStore
 import com.pingai.app.network.AiException
 import com.pingai.app.network.AiRepository
+import com.pingai.app.network.Quiz
+import kotlin.random.Random
 import com.pingai.app.notification.NotificationHelper
 import com.pingai.app.widget.WidgetUpdater
 import com.pingai.app.work.WorkScheduler
@@ -119,10 +121,20 @@ object TipService {
                 val results = coroutineScope {
                     targets.map { t ->
                         async {
-                            t to AiRepository.quiz(
-                                provider, apiKey, t.name, contentLang, optionCount,
-                                t.recent, t.avoid, t.liked
-                            )
+                            // ~4 yenilemede 1: daha önce yanlış bilinen soru tekrar sorulur (API'ye gitmez).
+                            val missed = if (Random.nextInt(4) == 0) prefs.takeMissed(t.id) else null
+                            if (missed != null) {
+                                val correctText = missed.options.getOrNull(missed.correctIdx).orEmpty()
+                                val shuffled = missed.options.shuffled()
+                                t to Result.success(
+                                    Quiz(missed.title, missed.question, shuffled, shuffled.indexOf(correctText), missed.info, review = true)
+                                )
+                            } else {
+                                t to AiRepository.quiz(
+                                    provider, apiKey, t.name, contentLang, optionCount,
+                                    t.recent, t.avoid, t.liked
+                                )
+                            }
                         }
                     }.awaitAll()
                 }
@@ -145,7 +157,8 @@ object TipService {
                             feedback = 0,
                             lastUpdatedEpochMs = now,
                             nextUpdateEpochMs = next,
-                            recent = (listOf(quiz.title) + topic.recent).take(8)
+                            review = quiz.review,
+                            recent = if (quiz.review) topic.recent else (listOf(quiz.title) + topic.recent).take(8)
                         )
                         prefs.updateTopic(topic.id) {
                             // Kullanıcının bu arada değiştirdiği listeler korunur.

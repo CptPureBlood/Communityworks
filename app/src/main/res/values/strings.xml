@@ -126,4 +126,21 @@
     <string name="pref_choices">Answer choices (Pro)</string>
     <string name="err_format">The AI sent an unexpected reply. Tap refresh to try again.</string>
     <string name="btn_back">Back</string>
+    <string name="update_available">Update available: v%1$s</string>
+    <string name="update_download">Download</string>
+    <string name="update_notif_title">Ping AI update</string>
+    <string name="update_notif_text">Version v%1$s is ready to download.</string>
+    <string name="sec_badges">Badges (%1$d/%2$d)</string>
+    <string name="badge_first">First answer</string>
+    <string name="badge_streak3">3-day streak</string>
+    <string name="badge_streak7">7-day streak</string>
+    <string name="badge_streak30">30-day streak</string>
+    <string name="badge_correct25">25 correct</string>
+    <string name="badge_correct100">100 correct</string>
+    <string name="badge_answered50">50 answers</string>
+    <string name="badge_answered100">100 answers</string>
+    <string name="badge_answered500">500 answers</string>
+    <string name="freeze_ready">🧊 Streak freeze ready (covers one missed day a month)</string>
+    <string name="freeze_used">🧊 Streak freeze used this month</string>
+    <string name="review_prefix">Review</string>
 </resources>

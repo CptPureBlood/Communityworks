@@ -3,6 +3,7 @@ package com.pingai.app.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.YearMonth
 
 data class Topic(
     val id: String,
@@ -20,7 +21,9 @@ data class Topic(
     val feedback: Int = 0,
     val recent: List<String> = emptyList(),
     val avoid: List<String> = emptyList(),
-    val liked: List<String> = emptyList()
+    val liked: List<String> = emptyList(),
+    /** Daha önce yanlış bilinen sorunun tekrarı (token harcamaz). */
+    val review: Boolean = false
 ) {
     val hasTip: Boolean get() = shortInfo.isNotBlank()
     val hasQuiz: Boolean get() = question.isNotBlank() && options.size >= 2
@@ -43,6 +46,7 @@ data class Topic(
         put("recent", JSONArray(recent))
         put("avoid", JSONArray(avoid))
         put("liked", JSONArray(liked))
+        put("review", review)
     }
 
     companion object {
@@ -63,7 +67,8 @@ data class Topic(
             feedback = obj.optInt("feedback", 0),
             recent = strings(obj.optJSONArray("recent")),
             avoid = strings(obj.optJSONArray("avoid")),
-            liked = strings(obj.optJSONArray("liked"))
+            liked = strings(obj.optJSONArray("liked")),
+            review = obj.optBoolean("review", false)
         )
     }
 }
@@ -89,31 +94,67 @@ data class SavedTip(
     }
 }
 
+data class MissedQ(
+    val topicId: String,
+    val topicName: String,
+    val title: String,
+    val question: String,
+    val options: List<String>,
+    val correctIdx: Int,
+    val info: String
+) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("topicId", topicId); put("topicName", topicName); put("title", title)
+        put("question", question); put("options", JSONArray(options))
+        put("correctIdx", correctIdx); put("info", info)
+    }
+
+    companion object {
+        fun fromJson(o: JSONObject): MissedQ {
+            val a = o.optJSONArray("options")
+            return MissedQ(
+                o.optString("topicId"), o.optString("topicName"), o.optString("title"),
+                o.optString("question"),
+                if (a == null) emptyList() else (0 until a.length()).map { a.getString(it) },
+                o.optInt("correctIdx"), o.optString("info")
+            )
+        }
+    }
+}
+
 data class Stats(
     val streak: Int = 0,
     val best: Int = 0,
     val lastDay: String = "",
     val answered: Int = 0,
-    val correct: Int = 0
+    val correct: Int = 0,
+    /** Seri korumanın kullanıldığı ay (yyyy-MM). */
+    val freezeMonth: String = ""
 ) {
-    /** Dün ya da bugün cevap verilmediyse seri sıfırdır. */
+    fun freezeAvailable(): Boolean = freezeMonth != YearMonth.now().toString()
+
+    /** Dün/bugün cevap varsa seri sürer; iki gün önceyse ve koruma hakkı varsa yine sürer. */
     fun effectiveStreak(): Int {
         val today = LocalDate.now()
-        return if (lastDay == today.toString() || lastDay == today.minusDays(1).toString()) streak else 0
+        return when {
+            lastDay == today.toString() || lastDay == today.minusDays(1).toString() -> streak
+            lastDay == today.minusDays(2).toString() && freezeAvailable() -> streak
+            else -> 0
+        }
     }
 
     val accuracyPercent: Int get() = if (answered == 0) 0 else (correct * 100) / answered
 
     fun toJson(): String = JSONObject().apply {
         put("streak", streak); put("best", best); put("lastDay", lastDay)
-        put("answered", answered); put("correct", correct)
+        put("answered", answered); put("correct", correct); put("freezeMonth", freezeMonth)
     }.toString()
 
     companion object {
         fun parse(raw: String?): Stats = try {
             if (raw.isNullOrBlank()) Stats() else JSONObject(raw).let {
                 Stats(it.optInt("streak"), it.optInt("best"), it.optString("lastDay"),
-                    it.optInt("answered"), it.optInt("correct"))
+                    it.optInt("answered"), it.optInt("correct"), it.optString("freezeMonth"))
             }
         } catch (e: Exception) { Stats() }
     }

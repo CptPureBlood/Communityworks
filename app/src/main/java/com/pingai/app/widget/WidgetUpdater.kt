@@ -34,13 +34,29 @@ object WidgetUpdater {
         manager.updateAppWidget(ids, build(app, flash))
     }
 
-    /** Doğru/yanlış cevabın ardından yumuşak sönen yeşil/kırmızı parlama. */
+    /**
+     * Cevap sonrası kenarlardan ortaya doğru saydamlaşan yeşil/kırmızı parlama.
+     * İlk kare tam güncelleme, sonrakiler yalnızca parlama katmanını değiştiren hafif (kısmi) güncellemeler;
+     * böylece kare hızı yüksek kalır.
+     */
     suspend fun playFlash(context: Context, correct: Boolean) {
-        for (f in floatArrayOf(0.85f, 0.7f, 0.5f, 0.32f, 0.16f)) {
-            updateAll(context, Flash(f, correct))
-            delay(230)
+        val app = context.applicationContext
+        val manager = AppWidgetManager.getInstance(app)
+        val ids = manager.getAppWidgetIds(ComponentName(app, PingWidgetProvider::class.java))
+        if (ids.isEmpty()) return
+        updateAll(app, Flash(1f, correct))
+        val color = if (correct) WidgetThemes.GOOD else WidgetThemes.BAD
+        val frames = 16
+        for (i in 1..frames) {
+            val t = i / frames.toFloat()
+            val factor = Math.pow((1f - t).toDouble(), 1.7).toFloat()
+            val partial = RemoteViews(app.packageName, R.layout.widget_ping)
+            partial.setInt(R.id.w_glow, "setImageAlpha", (factor * 255).toInt().coerceIn(0, 255))
+            partial.setInt(R.id.w_glow, "setColorFilter", color)
+            manager.partiallyUpdateAppWidget(ids, partial)
+            delay(55)
         }
-        updateAll(context, null)
+        updateAll(app, null)
     }
 
     private suspend fun build(app: Context, flash: Flash?): RemoteViews {
@@ -58,13 +74,21 @@ object WidgetUpdater {
 
         val views = RemoteViews(app.packageName, R.layout.widget_ping)
 
-        // Arka plan: tema rengi (parlama sırasında yeşile/kırmızıya karışır)
-        val bg = if (flash != null) {
-            ColorUtils.blendARGB(theme.bg, if (flash.correct) WidgetThemes.GOOD else WidgetThemes.BAD, flash.factor)
-        } else theme.bg
-        views.setInt(R.id.w_bg, "setColorFilter", bg)
+        // Arka plan: tema rengi. Parlama ayrı bir katmanda (kenarlardan ortaya saydamlaşan).
+        views.setInt(R.id.w_bg, "setColorFilter", theme.bg)
+        if (flash != null) {
+            views.setViewVisibility(R.id.w_glow, View.VISIBLE)
+            views.setInt(R.id.w_glow, "setColorFilter", if (flash.correct) WidgetThemes.GOOD else WidgetThemes.BAD)
+            views.setInt(R.id.w_glow, "setImageAlpha", (flash.factor * 255).toInt().coerceIn(0, 255))
+        } else {
+            views.setViewVisibility(R.id.w_glow, View.GONE)
+        }
+        views.setTextColor(R.id.w_sign, ColorUtils.setAlphaComponent(theme.dim, 140))
 
-        views.setTextViewText(R.id.w_topic, topic?.name ?: loc.getString(R.string.app_name))
+        views.setTextViewText(
+            R.id.w_topic,
+            (if (topic?.review == true) "🔁 " else "") + (topic?.name ?: loc.getString(R.string.app_name))
+        )
         views.setTextColor(R.id.w_topic, theme.accent)
         views.setInt(R.id.w_settings, "setColorFilter", theme.dim)
         views.setInt(R.id.w_refresh, "setColorFilter", theme.dim)

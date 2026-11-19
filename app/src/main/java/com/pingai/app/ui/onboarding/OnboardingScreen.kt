@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pingai.app.R
+import com.pingai.app.core.APP_LANGUAGES
+import com.pingai.app.core.CONTENT_LANGUAGES
 import com.pingai.app.core.LocaleHelper
 import com.pingai.app.core.TipService
 import com.pingai.app.data.AiProvider
@@ -50,20 +53,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-val CONTENT_LANGUAGES = listOf(
-    "tr" to "Türkçe", "en" to "English", "de" to "Deutsch", "fr" to "Français", "es" to "Español"
-)
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OnboardingScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var step by remember { mutableIntStateOf(0) }
+    var step by rememberSaveable { mutableStateOf(0) }
     var topic by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
     var lang by remember {
-        mutableStateOf(LocaleHelper.deviceLanguage().takeIf { l -> CONTENT_LANGUAGES.any { it.first == l } } ?: "en")
+        val ui = LocaleHelper.saved(context).takeIf { it != "system" } ?: LocaleHelper.deviceLanguage()
+        mutableStateOf(ui.takeIf { l -> CONTENT_LANGUAGES.any { it.first == l } } ?: "en")
     }
     var saving by remember { mutableStateOf(false) }
 
@@ -77,7 +77,7 @@ fun OnboardingScreen() {
         Text("Ping AI", color = WinColors.Accent, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            repeat(3) { i ->
+            repeat(4) { i ->
                 Text(
                     "━━",
                     color = if (i <= step) WinColors.Accent else WinColors.Stroke,
@@ -89,6 +89,39 @@ fun OnboardingScreen() {
 
         when (step) {
             0 -> {
+                Text("🌐", fontSize = 40.sp)
+                Spacer(Modifier.height(6.dp))
+                Text("Ping AI", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.pref_app_language), color = WinColors.TextDim)
+                Spacer(Modifier.height(16.dp))
+                val savedUi = LocaleHelper.saved(context)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Chip(stringResource(R.string.lang_system), selected = savedUi == "system") {
+                        if (savedUi != "system") {
+                            LocaleHelper.save(context, "system")
+                            (context as? android.app.Activity)?.recreate()
+                        }
+                    }
+                    APP_LANGUAGES.forEach { (code, label) ->
+                        Chip(label, selected = savedUi == code) {
+                            if (savedUi != code) {
+                                LocaleHelper.save(context, code)
+                                (context as? android.app.Activity)?.recreate()
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = { step = 1 }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.onb_next))
+                }
+            }
+
+            1 -> {
                 Text(stringResource(R.string.onb_key_title), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
                 Spacer(Modifier.height(8.dp))
                 Text(stringResource(R.string.onb_intro), color = WinColors.TextDim)
@@ -117,14 +150,17 @@ fun OnboardingScreen() {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(24.dp))
-                Button(
-                    onClick = { step = 1 },
-                    enabled = apiKey.length > 10,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.onb_next)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { step = 0 }) { Text(stringResource(R.string.onb_back)) }
+                    Button(
+                        onClick = { step = 2 },
+                        enabled = apiKey.length > 10,
+                        modifier = Modifier.weight(1f)
+                    ) { Text(stringResource(R.string.onb_next)) }
+                }
             }
 
-            1 -> {
+            2 -> {
                 Text(stringResource(R.string.onb_topic_title), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
                 Spacer(Modifier.height(6.dp))
                 Text(stringResource(R.string.onb_topic_sub), color = WinColors.TextDim)
@@ -132,9 +168,9 @@ fun OnboardingScreen() {
                 TopicPicker(topic) { topic = it }
                 Spacer(Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = { step = 0 }) { Text(stringResource(R.string.onb_back)) }
+                    OutlinedButton(onClick = { step = 1 }) { Text(stringResource(R.string.onb_back)) }
                     Button(
-                        onClick = { step = 2 },
+                        onClick = { step = 3 },
                         enabled = topic.isNotBlank(),
                         modifier = Modifier.weight(1f)
                     ) { Text(stringResource(R.string.onb_next)) }
@@ -156,7 +192,7 @@ fun OnboardingScreen() {
                 }
                 Spacer(Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = { step = 1 }) { Text(stringResource(R.string.onb_back)) }
+                    OutlinedButton(onClick = { step = 2 }) { Text(stringResource(R.string.onb_back)) }
                     Button(
                         enabled = !saving,
                         modifier = Modifier.weight(1f),

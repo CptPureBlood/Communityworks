@@ -17,6 +17,7 @@ class RefreshWorker(
             notify = true,
             slot = if (slot >= 0) slot else null
         )
+        com.pingai.app.network.UpdateChecker.check(applicationContext, notify = true)
         return Result.success()
     }
 }

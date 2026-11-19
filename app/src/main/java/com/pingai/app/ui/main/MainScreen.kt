@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -61,6 +62,9 @@ import com.pingai.app.ui.common.QuizGood
 import com.pingai.app.ui.common.QuizBad
 import com.pingai.app.ui.common.ResultLine
 import com.pingai.app.ui.common.rememberQuizFlash
+import com.pingai.app.ui.common.quizGlow
+import com.pingai.app.ui.common.ThemeTile
+import com.pingai.app.network.UpdateChecker
 import com.pingai.app.widget.WidgetThemes
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
@@ -70,7 +74,8 @@ import com.pingai.app.ui.common.Chip
 import com.pingai.app.ui.common.SectionCard
 import com.pingai.app.ui.common.TopicPicker
 import com.pingai.app.ui.detail.DetailActivity
-import com.pingai.app.ui.onboarding.CONTENT_LANGUAGES
+import com.pingai.app.core.APP_LANGUAGES
+import com.pingai.app.core.CONTENT_LANGUAGES
 import com.pingai.app.ui.theme.WinColors
 import com.pingai.app.widget.WidgetUpdater
 import com.pingai.app.work.WorkScheduler
@@ -124,6 +129,9 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
     val quietStart by prefs.quietStartMin.collectAsState(initial = 23 * 60)
     val quietEnd by prefs.quietEndMin.collectAsState(initial = 7 * 60)
     val optionCount by prefs.optionCount.collectAsState(initial = 2)
+    val updateVersion by prefs.updateVersion.collectAsState(initial = "")
+    val updateUrl by prefs.updateUrl.collectAsState(initial = "")
+    LaunchedEffect(Unit) { UpdateChecker.check(app, notify = false) }
     val cooldownUntil by TipService.cooldownUntil.collectAsState()
     var nowTick by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(cooldownUntil) {
@@ -165,6 +173,27 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
             Chip("🔥 ${stats.effectiveStreak()}", selected = stats.effectiveStreak() > 0) { }
         }
 
+        if (updateVersion.isNotBlank() && updateUrl.isNotBlank()) {
+            val shape = RoundedCornerShape(14.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(WinColors.Accent.copy(alpha = 0.15f))
+                    .border(1.dp, WinColors.Accent, shape)
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    stringResource(R.string.update_available, updateVersion),
+                    color = WinColors.Text, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f)
+                )
+                Button(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl)))
+                }) { Text(stringResource(R.string.update_download)) }
+            }
+        }
+
         // Kahraman kart
         val heroShape = RoundedCornerShape(22.dp)
         val flash by rememberQuizFlash(active)
@@ -174,7 +203,7 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
                 .fillMaxWidth()
                 .clip(heroShape)
                 .background(Brush.linearGradient(listOf(WinColors.HeroStart, WinColors.HeroEnd)))
-                .drawBehind { drawRect(flashColor.copy(alpha = flash * 0.55f)) }
+                .quizGlow(flash, flashColor)
                 .border(1.dp, WinColors.Stroke, heroShape)
                 .padding(20.dp)
         ) {
@@ -279,6 +308,28 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
                 StatCell("🏆 ${stats.best}", stringResource(R.string.stat_best))
                 StatCell("${stats.accuracyPercent}%", stringResource(R.string.stat_accuracy))
                 StatCell("${stats.answered}", stringResource(R.string.stat_answered))
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(if (stats.freezeAvailable()) R.string.freeze_ready else R.string.freeze_used),
+                color = WinColors.TextDim, fontSize = 13.sp
+            )
+        }
+
+        // Rozetler
+        val earned = BADGES.count { it.earned(stats) }
+        SectionCard(stringResource(R.string.sec_badges, earned, BADGES.size)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                BADGES.forEach { b ->
+                    val on = b.earned(stats)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(76.dp).alpha(if (on) 1f else 0.3f)
+                    ) {
+                        Text(b.emoji, fontSize = 28.sp)
+                        Text(stringResource(b.nameRes), color = WinColors.Text, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
             }
         }
 
@@ -436,11 +487,7 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
             Spacer(Modifier.height(6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val saved = LocaleHelper.saved(context)
-                listOf(
-                    "system" to stringResource(R.string.lang_system),
-                    "en" to "English",
-                    "tr" to "Türkçe"
-                ).forEach { (code, label) ->
+                (listOf("system" to stringResource(R.string.lang_system)) + APP_LANGUAGES).forEach { (code, label) ->
                     Chip(label, selected = saved == code) {
                         if (saved != code) {
                             LocaleHelper.save(context, code)
@@ -477,25 +524,15 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
 
         // Widget teması + şık sayısı
         SectionCard(stringResource(R.string.sec_theme)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 WidgetThemes.all.forEach { th ->
-                    val locked = th.pro && !isPro
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(Color(th.accent))
-                                .border(1.dp, WinColors.Stroke, CircleShape)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Chip(
-                            label = stringResource(th.nameRes) + if (locked) " 🔒" else "",
-                            selected = themeId == th.id,
-                            enabled = !locked
-                        ) {
-                            scope.launch { prefs.setWidgetTheme(th.id); WidgetUpdater.updateAll(app) }
-                        }
+                    ThemeTile(
+                        bg = Color(th.bg), button = Color(th.button), text = Color(th.text), accent = Color(th.accent),
+                        label = stringResource(th.nameRes),
+                        selected = themeId == th.id,
+                        locked = th.pro && !isPro
+                    ) {
+                        scope.launch { prefs.setWidgetTheme(th.id); WidgetUpdater.updateAll(app) }
                     }
                 }
             }
@@ -546,6 +583,12 @@ fun MainScreen(onOpenSaved: () -> Unit = {}) {
         }
 
         Text(stringResource(R.string.widget_howto), color = WinColors.TextDim, fontSize = 13.sp)
+        Text(
+            "Ping AI v${UpdateChecker.installedVersion(app)} · KCD",
+            color = WinColors.TextDim.copy(alpha = 0.7f), fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
         Spacer(Modifier.height(24.dp))
     }
 }
