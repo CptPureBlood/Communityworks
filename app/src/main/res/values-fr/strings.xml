@@ -176,4 +176,10 @@
         <item>Pied mis dans le plâtre</item>
         <item>Retour en taxi</item>
     </string-array>
+    <string name="nav_home">Accueil</string>
+    <string name="nav_saved">Enregistrés</string>
+    <string name="nav_badges">Badges</string>
+    <string name="nav_settings">Réglages</string>
+    <string name="goal_title">Objectif du jour : %1$d / %2$d</string>
+    <string name="goal_next">Prochaine question</string>
 </resources>

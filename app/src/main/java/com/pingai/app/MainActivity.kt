@@ -8,7 +8,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import com.pingai.app.ui.common.BottomNav
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,21 +82,22 @@ class MainActivity : ComponentActivity() {
                     when (onboardingDone) {
                         null -> {}
                         false -> OnboardingScreen()
-                        true -> androidx.compose.animation.Crossfade(
-                            targetState = page,
-                            animationSpec = androidx.compose.animation.core.tween(220),
-                            label = "page"
-                        ) { p ->
-                            when (p) {
-                                "saved" -> SavedScreen { page = "home" }
-                                "ach" -> AchievementsScreen { page = "home" }
-                                "settings" -> SettingsScreen { page = "home" }
-                                else -> HomeScreen(
-                                    onOpenSaved = { page = "saved" },
-                                    onOpenAchievements = { page = "ach" },
-                                    onOpenSettings = { page = "settings" }
-                                )
+                        true -> Column(Modifier.fillMaxSize()) {
+                            Box(Modifier.weight(1f)) {
+                                androidx.compose.animation.Crossfade(
+                                    targetState = page,
+                                    animationSpec = androidx.compose.animation.core.tween(220),
+                                    label = "page"
+                                ) { p ->
+                                    when (p) {
+                                        "saved" -> SavedScreen { page = "home" }
+                                        "ach" -> AchievementsScreen { page = "home" }
+                                        "settings" -> SettingsScreen { page = "home" }
+                                        else -> HomeScreen()
+                                    }
+                                }
                             }
+                            BottomNav(page) { page = it }
                         }
                     }
                 }

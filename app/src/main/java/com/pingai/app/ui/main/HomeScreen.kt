@@ -63,6 +63,7 @@ import com.pingai.app.ads.RewardResult
 import com.pingai.app.analytics.Track
 import com.pingai.app.ui.common.AnimatedCounter
 import com.pingai.app.ui.common.GoalRing
+import com.pingai.app.ui.common.PingBackground
 import com.pingai.app.ui.common.ShimmerLines
 import com.pingai.app.ui.common.LoadingMessage
 import androidx.compose.animation.animateContentSize
@@ -104,20 +105,40 @@ import java.util.UUID
 private const val PRO_UNLOCK_CODE = "PINGAI-PRO"
 
 @Composable
-private fun CountdownText(targetMs: Long, modifier: Modifier = Modifier) {
+private fun NextClock(targetMs: Long) {
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(targetMs) {
-        while (true) {
-            now = System.currentTimeMillis()
-            delay(1000)
-        }
+        while (true) { now = System.currentTimeMillis(); delay(1000) }
     }
     val left = ((targetMs - now) / 1000).coerceAtLeast(0)
-    val h = left / 3600
-    val m = (left % 3600) / 60
-    val s = left % 60
-    val text = if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
-    Text(stringResource(R.string.widget_next_update, text), color = WinColors.TextDim, fontSize = 14.sp, modifier = modifier)
+    val text = if (targetMs <= now) "--:--" else "%02d:%02d:%02d".format(left / 3600, (left % 3600) / 60, left % 60)
+    Text(text, color = WinColors.Text, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+}
+
+@Composable
+private fun GoalCard(done: Int, goal: Int, nextMs: Long) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(WinColors.Card.copy(alpha = 0.88f))
+            .border(1.dp, WinColors.Stroke, shape)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        GoalRing(done, goal)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            stringResource(R.string.goal_title, done.coerceAtMost(goal), goal),
+            color = WinColors.Text, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.weight(1f)
+        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(stringResource(R.string.goal_next), color = WinColors.TextDim, fontSize = 11.sp)
+            NextClock(nextMs)
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -180,6 +201,8 @@ fun HomeScreen(
 
     var showTopics by remember { mutableStateOf(false) }
 
+    Box(Modifier.fillMaxSize()) {
+    PingBackground(active?.tipId, Modifier.fillMaxSize())
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -188,14 +211,6 @@ fun HomeScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Ping AI", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = WinColors.Text, modifier = Modifier.weight(1f))
-            Chip("♥", selected = false) { onOpenSaved() }
-            Spacer(Modifier.width(6.dp))
-            Chip("🏅", selected = false) { onOpenAchievements() }
-            Spacer(Modifier.width(6.dp))
-            Chip("⚙", selected = false) { onOpenSettings() }
-        }
 
         if (updateVersion.isNotBlank() && updateUrl.isNotBlank()) {
             val shape = RoundedCornerShape(14.dp)
@@ -224,8 +239,6 @@ fun HomeScreen(
                 showTopics = true
             }
             Spacer(Modifier.weight(1f))
-            GoalRing(daily.answered, Limits.DAILY_GOAL)
-            Spacer(Modifier.width(10.dp))
             Text("🔥", fontSize = 15.sp)
             Spacer(Modifier.width(3.dp))
             AnimatedCounter(stats.effectiveStreak(), WinColors.Text)
@@ -234,6 +247,8 @@ fun HomeScreen(
             Spacer(Modifier.width(3.dp))
             AnimatedCounter(stats.correctStreak, WinColors.Text)
         }
+
+        GoalCard(daily.answered, Limits.DAILY_GOAL, active?.nextUpdateEpochMs ?: 0L)
 
         // Kahraman kart
         val heroShape = RoundedCornerShape(22.dp)
@@ -244,7 +259,7 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .animateContentSize()
                 .clip(heroShape)
-                .background(Brush.linearGradient(listOf(WinColors.HeroStart, WinColors.HeroEnd)))
+                .background(Brush.linearGradient(listOf(WinColors.HeroStart.copy(alpha = 0.92f), WinColors.HeroEnd.copy(alpha = 0.92f))))
                 .quizGlow(flash, flashColor)
                 .border(1.dp, WinColors.Stroke, heroShape)
                 .padding(20.dp)
@@ -288,10 +303,6 @@ fun HomeScreen(
             if (tip.isNotBlank() && lastError != null && !loading) {
                 Spacer(Modifier.height(8.dp))
                 Text(lastError.orEmpty(), color = WinColors.Error, fontSize = 13.sp)
-            }
-            if (active != null && active.nextUpdateEpochMs > System.currentTimeMillis() && !loading && !active.awaitingAnswer) {
-                Spacer(Modifier.height(10.dp))
-                CountdownText(active.nextUpdateEpochMs)
             }
             Spacer(Modifier.height(16.dp))
 
@@ -375,6 +386,7 @@ fun HomeScreen(
             )
         }
 
+    }
     }
 
     if (showTopics) {
