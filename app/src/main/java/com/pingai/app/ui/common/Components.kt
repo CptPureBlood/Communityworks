@@ -337,3 +337,29 @@ fun ThemeTile(
         )
     }
 }
+
+/**
+ * Soru gelene kadar gösterilen esprili mesajlar: her biri 2 sn kalır, sonuna 0,33 sn'de bir nokta eklenir.
+ * 20 sn'yi aşarsa sırayla "easter egg" mesajlarına geçer.
+ */
+@Composable
+fun LoadingMessage(color: Color, fontSize: androidx.compose.ui.unit.TextUnit = 14.sp) {
+    val msgs = androidx.compose.ui.res.stringArrayResource(R.array.loading_msgs)
+    val eggs = androidx.compose.ui.res.stringArrayResource(R.array.loading_eggs)
+    val order = remember(msgs.size) { msgs.indices.shuffled() }
+    var elapsed by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) {
+        val start = android.os.SystemClock.elapsedRealtime()
+        while (true) {
+            delay(110)
+            elapsed = android.os.SystemClock.elapsedRealtime() - start
+        }
+    }
+    val base = if (elapsed >= 20_000L) {
+        eggs[((elapsed - 20_000L) / 2_000L).toInt().coerceAtMost(eggs.size - 1)]
+    } else {
+        msgs[order[(elapsed / 2_000L).toInt() % order.size]]
+    }
+    val dots = ((elapsed % 2_000L) / 333L % 4L).toInt()
+    Text(base + ".".repeat(dots), color = color, fontSize = fontSize)
+}

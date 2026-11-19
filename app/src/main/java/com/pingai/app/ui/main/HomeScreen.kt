@@ -64,6 +64,7 @@ import com.pingai.app.analytics.Track
 import com.pingai.app.ui.common.AnimatedCounter
 import com.pingai.app.ui.common.GoalRing
 import com.pingai.app.ui.common.ShimmerLines
+import com.pingai.app.ui.common.LoadingMessage
 import androidx.compose.animation.animateContentSize
 import com.pingai.app.data.Prefs
 import com.pingai.app.data.RefreshInterval
@@ -255,10 +256,10 @@ fun HomeScreen(
             Spacer(Modifier.height(10.dp))
             val tip = active?.shortInfo.orEmpty()
             when {
-                loading && tip.isBlank() -> Column {
+                loading -> Column {
                     ShimmerLines()
-                    Spacer(Modifier.height(10.dp))
-                    Text(stringResource(R.string.widget_loading), color = WinColors.TextDim, fontSize = 13.sp)
+                    Spacer(Modifier.height(12.dp))
+                    LoadingMessage(WinColors.TextDim, 14.sp)
                 }
                 tip.isBlank() && lastError != null ->
                     Text(lastError.orEmpty(), color = WinColors.Error, fontSize = 17.sp)
