@@ -89,25 +89,14 @@ fun OnboardingScreen() {
 
         when (step) {
             0 -> {
-                Text(stringResource(R.string.onb_topic_title), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
-                Spacer(Modifier.height(6.dp))
-                Text(stringResource(R.string.onb_topic_sub), color = WinColors.TextDim)
-                Spacer(Modifier.height(18.dp))
-                TopicPicker(topic) { topic = it }
-                Spacer(Modifier.height(24.dp))
-                Button(
-                    onClick = { step = 1 },
-                    enabled = topic.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.onb_next)) }
-            }
-
-            1 -> {
                 Text(stringResource(R.string.onb_key_title), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.onb_intro), color = WinColors.TextDim)
+                Spacer(Modifier.height(12.dp))
                 StepRow(1, stringResource(R.string.onb_key_step1))
                 StepRow(2, stringResource(R.string.onb_key_step2))
                 StepRow(3, stringResource(R.string.onb_key_step3))
+                StepRow(4, stringResource(R.string.onb_key_step4))
                 Spacer(Modifier.height(4.dp))
                 Text(stringResource(R.string.onb_key_free_note), color = WinColors.TextDim, fontSize = 13.sp)
                 Spacer(Modifier.height(12.dp))
@@ -128,11 +117,25 @@ fun OnboardingScreen() {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(24.dp))
+                Button(
+                    onClick = { step = 1 },
+                    enabled = apiKey.length > 10,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.onb_next)) }
+            }
+
+            1 -> {
+                Text(stringResource(R.string.onb_topic_title), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
+                Spacer(Modifier.height(6.dp))
+                Text(stringResource(R.string.onb_topic_sub), color = WinColors.TextDim)
+                Spacer(Modifier.height(18.dp))
+                TopicPicker(topic) { topic = it }
+                Spacer(Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = { step = 0 }) { Text(stringResource(R.string.onb_back)) }
                     Button(
                         onClick = { step = 2 },
-                        enabled = apiKey.length > 10,
+                        enabled = topic.isNotBlank(),
                         modifier = Modifier.weight(1f)
                     ) { Text(stringResource(R.string.onb_next)) }
                 }
@@ -173,7 +176,7 @@ fun OnboardingScreen() {
                                 prefs.setRefreshIntervalMinutes(720)
                                 prefs.setNotificationsEnabled(true)
                                 prefs.setOnboardingDone(true)
-                                TipService.launchRefresh(app, notify = false)
+                                TipService.launchRefresh(app, notify = false, force = true)
                                 WidgetUpdater.updateAll(app)
                             }
                         }

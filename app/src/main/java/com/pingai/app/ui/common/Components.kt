@@ -20,6 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -135,4 +138,62 @@ fun TopicPicker(value: String, onValueChange: (String) -> Unit) {
             style = MaterialTheme.typography.bodySmall
         )
     }
+}
+
+// ---------------------------------------------------------------- Quiz bileşenleri
+
+/** Cevap verildiğinde 1 → 0 sönen parlama değeri. İlk açılışta (zaten cevaplıysa) parlamaz. */
+@Composable
+fun rememberQuizFlash(topic: com.pingai.app.data.Topic?): androidx.compose.runtime.State<Float> {
+    val anim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+    val answered = topic?.answeredIdx ?: -1
+    var prev by androidx.compose.runtime.remember(topic?.tipId) {
+        androidx.compose.runtime.mutableIntStateOf(answered)
+    }
+    androidx.compose.runtime.LaunchedEffect(topic?.tipId, answered) {
+        if (prev < 0 && answered >= 0) {
+            anim.snapTo(1f)
+            anim.animateTo(0f, androidx.compose.animation.core.tween(1400))
+        }
+        prev = answered
+    }
+    return anim.asState()
+}
+
+val QuizGood = Color(0xFF2EA043)
+val QuizBad = Color(0xFFE5484D)
+
+@Composable
+fun QuizOptions(options: List<String>, onAnswer: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEachIndexed { i, label ->
+            val shape = RoundedCornerShape(14.dp)
+            Text(
+                text = label,
+                color = WinColors.Text,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(Color(0x33FFFFFF))
+                    .border(BorderStroke(1.dp, Color(0x44FFFFFF)), shape)
+                    .clickable { onAnswer(i) }
+                    .padding(horizontal = 16.dp, vertical = 13.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ResultLine(topic: com.pingai.app.data.Topic) {
+    if (!topic.hasQuiz || topic.answeredIdx < 0) return
+    val ok = topic.answeredIdx == topic.correctIdx
+    Text(
+        text = if (ok) stringResource(R.string.quiz_correct)
+        else stringResource(R.string.quiz_wrong, topic.options.getOrNull(topic.correctIdx).orEmpty()),
+        color = if (ok) QuizGood else QuizBad,
+        fontWeight = FontWeight.Bold,
+        fontSize = 15.sp
+    )
 }

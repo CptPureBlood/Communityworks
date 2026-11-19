@@ -1,9 +1,11 @@
 package com.pingai.app.widget
 
+import android.app.NotificationManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import com.pingai.app.core.TipActions
 import com.pingai.app.work.WorkScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,21 +15,47 @@ class PingWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val ACTION_REFRESH = "com.pingai.app.WIDGET_REFRESH"
+        const val ACTION_ANSWER = "com.pingai.app.WIDGET_ANSWER"
+        const val ACTION_SAVE = "com.pingai.app.WIDGET_SAVE"
+        const val ACTION_LIKE = "com.pingai.app.WIDGET_LIKE"
+        const val ACTION_DISLIKE = "com.pingai.app.WIDGET_DISLIKE"
+        const val EXTRA_INDEX = "index"
+        const val EXTRA_TOPIC_ID = "topic_id"
+        const val EXTRA_FROM_NOTIFICATION = "from_notification"
     }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        val pending = goAsync()
-        CoroutineScope(Dispatchers.Default).launch {
-            try {
-                WidgetUpdater.updateAll(context)
-            } finally {
-                pending.finish()
-            }
-        }
+        run(context) { WidgetUpdater.updateAll(context) }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_REFRESH) WorkScheduler.runManual(context)
+        val app = context.applicationContext
+        when (intent.action) {
+            ACTION_REFRESH -> WorkScheduler.runManual(app)
+            ACTION_ANSWER -> {
+                val index = intent.getIntExtra(EXTRA_INDEX, -1)
+                val topicId = intent.getStringExtra(EXTRA_TOPIC_ID)
+                val fromNotification = intent.getBooleanExtra(EXTRA_FROM_NOTIFICATION, false)
+                run(app) {
+                    val correct = TipActions.answer(app, topicId, index)
+                    if (fromNotification) {
+                        app.getSystemService(NotificationManager::class.java)?.cancel(topicId.orEmpty().hashCode())
+                    }
+                    if (correct == null) WidgetUpdater.updateAll(app)
+                    else WidgetUpdater.playFlash(app, correct)
+                }
+            }
+            ACTION_SAVE -> run(app) { TipActions.toggleSave(app, null); WidgetUpdater.updateAll(app) }
+            ACTION_LIKE -> run(app) { TipActions.feedback(app, null, true); WidgetUpdater.updateAll(app) }
+            ACTION_DISLIKE -> run(app) { TipActions.feedback(app, null, false); WidgetUpdater.updateAll(app) }
+        }
+    }
+
+    private fun run(context: Context, block: suspend () -> Unit) {
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.Default).launch {
+            try { block() } finally { pending.finish() }
+        }
     }
 }

@@ -42,6 +42,7 @@ object WorkScheduler {
 
     /** Widget'taki yenile düğmesi için: hemen çalışır (zincire dokunmaz, iş bitince zincir yenilenir). */
     fun runManual(context: Context) {
+        if (com.pingai.app.core.TipService.cooldownRemainingMs() > 0L) return
         val request = OneTimeWorkRequestBuilder<RefreshWorker>()
             .setConstraints(needNetwork)
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)

@@ -24,14 +24,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,15 +47,23 @@ import com.google.android.gms.ads.AdView
 import com.pingai.app.R
 import com.pingai.app.ads.AdManager
 import com.pingai.app.core.LocaleHelper
+import com.pingai.app.core.TipActions
 import com.pingai.app.core.TipService
 import com.pingai.app.data.Prefs
 import com.pingai.app.data.SecureKeyStore
 import com.pingai.app.network.AiRepository
+import com.pingai.app.ui.common.QuizBad
+import com.pingai.app.ui.common.QuizGood
+import com.pingai.app.ui.common.QuizOptions
+import com.pingai.app.ui.common.ResultLine
+import com.pingai.app.ui.common.rememberQuizFlash
 import com.pingai.app.ui.theme.PingAiTheme
 import com.pingai.app.ui.theme.WinColors
+import com.pingai.app.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -81,28 +92,30 @@ class DetailActivity : ComponentActivity() {
 private fun DetailScreen(topicId: String?) {
     val context = LocalContext.current
     val app = context.applicationContext
-    var topicName by remember { mutableStateOf("") }
-    var tip by remember { mutableStateOf("") }
+    val prefs = remember { Prefs(app) }
+    val scope = rememberCoroutineScope()
+
+    val topics by prefs.topics.collectAsState(initial = emptyList())
+    val topic = topics.firstOrNull { it.id == topicId } ?: topics.firstOrNull()
+    val isPro by prefs.isPro.collectAsState(initial = true)
+
     var detail by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var isPro by remember { mutableStateOf(true) }
+    var loading by remember { mutableStateOf(false) }
     var showAd by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(topicId, attempt) {
+    val flash by rememberQuizFlash(topic)
+    val flashColor = if (topic != null && topic.answeredIdx == topic.correctIdx) QuizGood else QuizBad
+
+    // Açıklama yalnızca soru cevaplandıktan sonra (ya da soru yoksa hemen) istenir.
+    val ready = topic != null && topic.hasTip && !topic.awaitingAnswer
+    LaunchedEffect(topic?.tipId, ready, attempt) {
+        val t = topic ?: return@LaunchedEffect
+        if (!ready) return@LaunchedEffect
         loading = true
         error = null
-        val prefs = Prefs(app)
-        isPro = prefs.isPro.first()
-        val topics = prefs.getTopicsOnce()
-        val topic = topics.firstOrNull { it.id == topicId } ?: topics.firstOrNull()
-        if (topic == null) {
-            loading = false
-            return@LaunchedEffect
-        }
-        topicName = topic.name
-        tip = topic.shortInfo
+        detail = ""
         val provider = prefs.provider.first()
         val key = withContext(Dispatchers.IO) { SecureKeyStore.get(app).getKey(provider) }
         if (key.isNullOrBlank()) {
@@ -113,7 +126,7 @@ private fun DetailScreen(topicId: String?) {
         val lang = LocaleHelper.resolveContentLanguage(prefs.contentLanguage.first())
         try {
             val result = withTimeout(40_000) {
-                AiRepository.detailed(provider, key, topic.name, topic.shortInfo, lang)
+                AiRepository.detailed(provider, key, t.name, t.shortInfo, lang)
             }
             result.onSuccess { detail = it }.onFailure { error = TipService.errorText(context, it) }
         } catch (e: Exception) {
@@ -129,7 +142,9 @@ private fun DetailScreen(topicId: String?) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding().drawBehind {
+        drawRect(flashColor.copy(alpha = flash * 0.5f))
+    }) {
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -137,32 +152,45 @@ private fun DetailScreen(topicId: String?) {
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(topicName, color = WinColors.Accent, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            if (tip.isNotBlank()) {
-                Text(
-                    "“$tip”",
-                    color = WinColors.Text, fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(WinColors.Card)
-                        .padding(16.dp)
-                )
-            }
-            when {
-                loading -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(20.dp), color = WinColors.Accent, strokeWidth = 2.dp)
+            Text(topic?.name.orEmpty(), color = WinColors.Accent, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+
+            if (topic != null && topic.awaitingAnswer) {
+                Text(topic.question, color = WinColors.Text, fontSize = 22.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.quiz_hint), color = WinColors.TextDim, fontSize = 13.sp)
+                QuizOptions(topic.options) { i ->
+                    scope.launch {
+                        val ok = TipActions.answer(app, topic.id, i)
+                        if (ok != null) WidgetUpdater.playFlash(app, ok)
+                    }
+                }
+            } else if (topic != null) {
+                ResultLine(topic)
+                if (topic.shortInfo.isNotBlank()) {
                     Text(
-                        stringResource(R.string.detail_loading),
-                        color = WinColors.TextDim,
-                        modifier = Modifier.padding(start = 12.dp)
+                        "“${topic.shortInfo}”",
+                        color = WinColors.Text, fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(WinColors.Card)
+                            .padding(16.dp)
                     )
                 }
-                error != null -> {
-                    Text(error.orEmpty(), color = WinColors.Error, fontSize = 16.sp)
-                    Button(onClick = { attempt++ }) { Text(stringResource(R.string.detail_retry)) }
+                when {
+                    loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = WinColors.Accent, strokeWidth = 2.dp)
+                        Text(
+                            stringResource(R.string.detail_loading),
+                            color = WinColors.TextDim,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+                    error != null -> {
+                        Text(error.orEmpty(), color = WinColors.Error, fontSize = 16.sp)
+                        Button(onClick = { attempt++ }) { Text(stringResource(R.string.detail_retry)) }
+                    }
+                    else -> Text(detail, color = WinColors.Text, fontSize = 17.sp, lineHeight = 26.sp)
                 }
-                else -> Text(detail, color = WinColors.Text, fontSize = 17.sp, lineHeight = 26.sp)
             }
             Spacer(Modifier.height(8.dp))
         }

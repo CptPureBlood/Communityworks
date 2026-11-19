@@ -45,13 +45,21 @@ object TipService {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mutex = Mutex()
+    private const val COOLDOWN_MS = 15_000L
     private val _status = MutableStateFlow(RefreshStatus())
+    private val _cooldownUntil = MutableStateFlow(0L)
+    /** Art arda istek göndermeyi önlemek için en erken yeni yenileme zamanı (15 sn). */
+    val cooldownUntil: StateFlow<Long> = _cooldownUntil.asStateFlow()
+
+    fun cooldownRemainingMs(): Long = (_cooldownUntil.value - System.currentTimeMillis()).coerceAtLeast(0L)
     val status: StateFlow<RefreshStatus> = _status.asStateFlow()
 
     /** Uygulamadan başlat: ekran kapansa/dönse de iş sürer. */
-    fun launchRefresh(context: Context, notify: Boolean = false) {
+    fun launchRefresh(context: Context, notify: Boolean = false, force: Boolean = false): Boolean {
+        if (!force && cooldownRemainingMs() > 0L) return false
         val app = context.applicationContext
         scope.launch { refreshAndReschedule(app, notify, null) }
+        return true
     }
 
     /** Yeniler, sonra bir sonraki zamanlamayı kurar. slot: zincirdeki mevcut işin yuvası (yoksa null). */
@@ -69,6 +77,7 @@ object TipService {
         var outcome = Outcome.FAILED
         try {
             _status.value = RefreshStatus(loading = true)
+            _cooldownUntil.value = System.currentTimeMillis() + COOLDOWN_MS
             prefs.setFetchingSince(System.currentTimeMillis())
             WidgetUpdater.updateAll(app)
             outcome = runRefresh(app, prefs, notify)
@@ -103,9 +112,18 @@ object TipService {
                     return@withTimeout fail(prefs, loc.getString(R.string.widget_no_topic))
                 }
 
+                val optionCount = if (isPro) prefs.optionCount.first() else 2
+                val quietNow = prefs.isQuietNow()
+                val notifyOn = notify && prefs.notificationsEnabled.first() && !quietNow
+
                 val results = coroutineScope {
                     targets.map { t ->
-                        async { t to AiRepository.shortTip(provider, apiKey, t.name, contentLang, t.shortInfo) }
+                        async {
+                            t to AiRepository.quiz(
+                                provider, apiKey, t.name, contentLang, optionCount,
+                                t.recent, t.avoid, t.liked
+                            )
+                        }
                     }.awaitAll()
                 }
 
@@ -113,18 +131,27 @@ object TipService {
                 var successes = 0
                 var firstError: Throwable? = null
                 for ((topic, result) in results) {
-                    val tip = result.getOrNull()
-                    if (tip != null) {
+                    val quiz = result.getOrNull()
+                    if (quiz != null) {
                         successes++
                         val next = now + interval * 60_000L
+                        val updated = topic.copy(
+                            shortInfo = quiz.info,
+                            title = quiz.title,
+                            question = quiz.question,
+                            options = quiz.options,
+                            correctIdx = quiz.correctIdx,
+                            answeredIdx = -1,
+                            feedback = 0,
+                            lastUpdatedEpochMs = now,
+                            nextUpdateEpochMs = next,
+                            recent = (listOf(quiz.title) + topic.recent).take(8)
+                        )
                         prefs.updateTopic(topic.id) {
-                            it.copy(shortInfo = tip, lastUpdatedEpochMs = now, nextUpdateEpochMs = next)
+                            // Kullanıcının bu arada değiştirdiği listeler korunur.
+                            updated.copy(avoid = it.avoid, liked = it.liked, name = it.name)
                         }
-                        if (notify) {
-                            NotificationHelper.showTipNotification(
-                                app, topic.copy(shortInfo = tip, lastUpdatedEpochMs = now, nextUpdateEpochMs = next)
-                            )
-                        }
+                        if (notifyOn) NotificationHelper.showTipNotification(app, updated)
                     } else if (firstError == null) {
                         firstError = result.exceptionOrNull()
                     }
@@ -158,6 +185,7 @@ object TipService {
         e is TimeoutCancellationException || e is InterruptedIOException ->
             loc.getString(R.string.err_timeout)
         e is UnknownHostException -> loc.getString(R.string.err_network)
+        e is com.pingai.app.network.BadFormatException -> loc.getString(R.string.err_format)
         e is AiException -> when (e.code) {
             429 -> loc.getString(R.string.err_rate)
             500, 502, 503, 504 -> loc.getString(R.string.err_busy)

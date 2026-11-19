@@ -19,6 +19,10 @@ import androidx.lifecycle.lifecycleScope
 import com.pingai.app.core.LocaleHelper
 import com.pingai.app.data.Prefs
 import com.pingai.app.ui.main.MainScreen
+import com.pingai.app.ui.main.SavedScreen
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.pingai.app.ui.onboarding.OnboardingScreen
 import com.pingai.app.ui.theme.PingAiTheme
 import com.pingai.app.ui.theme.WinColors
@@ -54,12 +58,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             val prefs = remember { Prefs(applicationContext) }
             val onboardingDone by prefs.onboardingDone.collectAsState(initial = null)
+            var page by remember { mutableStateOf("home") }
+            BackHandler(enabled = page != "home") { page = "home" }
             PingAiTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = WinColors.Bg) {
                     when (onboardingDone) {
                         null -> {}
                         false -> OnboardingScreen()
-                        true -> MainScreen()
+                        true -> if (page == "saved") SavedScreen { page = "home" } else MainScreen { page = "saved" }
                     }
                 }
             }

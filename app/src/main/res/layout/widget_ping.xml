@@ -1,79 +1,178 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_bg"
-    android:padding="14dp">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/w_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="32dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/w_topic"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="@string/app_name"
+                android:textColor="#60CDFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/w_streak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:maxLines="1"
+                android:visibility="gone"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/w_refresh"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/widget_refresh"
+                android:src="@drawable/ic_refresh" />
+
+            <ImageView
+                android:id="@+id/w_settings"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/widget_settings"
+                android:src="@drawable/ic_settings" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/w_topic"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:id="@+id/w_body"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:maxLines="1"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
-            android:text="@string/app_name"
-            android:textColor="#60CDFF"
+            android:text="@string/widget_loading"
+            android:textColor="#FFFFFF"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="11sp"
+            android:autoSizeMaxTextSize="26sp"
+            android:autoSizeStepGranularity="1sp" />
+
+        <TextView
+            android:id="@+id/w_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:visibility="gone"
+            android:textColor="#FFFFFF"
             android:textSize="13sp"
             android:textStyle="bold" />
 
-        <ImageView
-            android:id="@+id/w_refresh"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:contentDescription="@string/widget_refresh"
-            android:src="@drawable/ic_refresh" />
+        <LinearLayout
+            android:id="@+id/w_options"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <ImageView
-            android:id="@+id/w_settings"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:contentDescription="@string/widget_settings"
-            android:src="@drawable/ic_settings" />
+            <FrameLayout
+                android:id="@+id/w_opt0"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="4dp">
+                <ImageView android:id="@+id/w_optbg0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/btn_bg" />
+                <TextView android:id="@+id/w_opttx0" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:paddingStart="8dp" android:paddingEnd="8dp" android:textColor="#FFFFFF" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="10sp" android:autoSizeMaxTextSize="15sp" android:autoSizeStepGranularity="1sp" android:maxLines="2" android:ellipsize="end" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/w_opt1"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="4dp">
+                <ImageView android:id="@+id/w_optbg1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/btn_bg" />
+                <TextView android:id="@+id/w_opttx1" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:paddingStart="8dp" android:paddingEnd="8dp" android:textColor="#FFFFFF" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="10sp" android:autoSizeMaxTextSize="15sp" android:autoSizeStepGranularity="1sp" android:maxLines="2" android:ellipsize="end" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/w_opt2"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="4dp"
+                android:visibility="gone">
+                <ImageView android:id="@+id/w_optbg2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/btn_bg" />
+                <TextView android:id="@+id/w_opttx2" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:paddingStart="8dp" android:paddingEnd="8dp" android:textColor="#FFFFFF" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="10sp" android:autoSizeMaxTextSize="15sp" android:autoSizeStepGranularity="1sp" android:maxLines="2" android:ellipsize="end" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/w_opt3"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="4dp"
+                android:visibility="gone">
+                <ImageView android:id="@+id/w_optbg3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/btn_bg" />
+                <TextView android:id="@+id/w_opttx3" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:paddingStart="8dp" android:paddingEnd="8dp" android:textColor="#FFFFFF" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="10sp" android:autoSizeMaxTextSize="15sp" android:autoSizeStepGranularity="1sp" android:maxLines="2" android:ellipsize="end" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <ImageView android:id="@+id/w_save" android:layout_width="30dp" android:layout_height="30dp" android:padding="5dp" android:scaleType="fitCenter" android:src="@drawable/ic_heart" />
+            <ImageView android:id="@+id/w_like" android:layout_width="30dp" android:layout_height="30dp" android:padding="5dp" android:scaleType="fitCenter" android:src="@drawable/ic_thumb_up" />
+            <ImageView android:id="@+id/w_dislike" android:layout_width="30dp" android:layout_height="30dp" android:padding="5dp" android:scaleType="fitCenter" android:src="@drawable/ic_thumb_down" />
+            <ImageView android:id="@+id/w_share" android:layout_width="30dp" android:layout_height="30dp" android:padding="5dp" android:scaleType="fitCenter" android:src="@drawable/ic_share" />
+
+            <Chronometer
+                android:id="@+id/w_countdown"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:visibility="gone"
+                android:textColor="#C5C5C5"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/w_footer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:visibility="gone"
+                android:textColor="#C5C5C5"
+                android:textSize="11sp" />
+        </LinearLayout>
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/w_body"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="4dp"
-        android:ellipsize="end"
-        android:text="@string/widget_loading"
-        android:textColor="#FFFFFF"
-        android:autoSizeTextType="uniform"
-        android:autoSizeMinTextSize="12sp"
-        android:autoSizeMaxTextSize="28sp"
-        android:autoSizeStepGranularity="1sp" />
-
-    <Chronometer
-        android:id="@+id/w_countdown"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:visibility="gone"
-        android:textColor="#C5C5C5"
-        android:textSize="12sp" />
-
-    <TextView
-        android:id="@+id/w_footer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:visibility="gone"
-        android:textColor="#C5C5C5"
-        android:textSize="12sp" />
-</LinearLayout>
+</FrameLayout>

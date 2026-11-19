@@ -14,6 +14,7 @@ import com.pingai.app.R
 import com.pingai.app.core.LocaleHelper
 import com.pingai.app.data.Topic
 import com.pingai.app.ui.detail.DetailActivity
+import com.pingai.app.widget.PingWidgetProvider
 
 object NotificationHelper {
 
@@ -50,15 +51,31 @@ object NotificationHelper {
             context, topic.id.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val shown = if (topic.hasQuiz && topic.answeredIdx < 0) topic.question else topic.shortInfo
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(loc.getString(R.string.notification_title, topic.name))
-            .setContentText(topic.shortInfo)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(topic.shortInfo))
+            .setContentText(shown)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(shown))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pending)
-            .build()
+        // En fazla 3 şık bildirimden cevaplanabilir; 4 şıklıda bildirime dokunup uygulamada cevaplanır.
+        if (topic.hasQuiz && topic.answeredIdx < 0 && topic.options.size <= 3) {
+            topic.options.forEachIndexed { i, label ->
+                val answerIntent = Intent(context, PingWidgetProvider::class.java)
+                    .setAction(PingWidgetProvider.ACTION_ANSWER)
+                    .putExtra(PingWidgetProvider.EXTRA_INDEX, i)
+                    .putExtra(PingWidgetProvider.EXTRA_TOPIC_ID, topic.id)
+                    .putExtra(PingWidgetProvider.EXTRA_FROM_NOTIFICATION, true)
+                val pi = PendingIntent.getBroadcast(
+                    context, 100 + i, answerIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                builder.addAction(0, label, pi)
+            }
+        }
+        val notification = builder.build()
         manager.notify(topic.id.hashCode(), notification)
     }
 }

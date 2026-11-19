@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
+import android.app.TimePickerDialog
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,6 +55,17 @@ import com.pingai.app.data.Prefs
 import com.pingai.app.data.RefreshInterval
 import com.pingai.app.data.SecureKeyStore
 import com.pingai.app.data.Topic
+import com.pingai.app.core.TipActions
+import com.pingai.app.ui.common.QuizOptions
+import com.pingai.app.ui.common.QuizGood
+import com.pingai.app.ui.common.QuizBad
+import com.pingai.app.ui.common.ResultLine
+import com.pingai.app.ui.common.rememberQuizFlash
+import com.pingai.app.widget.WidgetThemes
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import com.pingai.app.ui.common.Chip
 import com.pingai.app.ui.common.SectionCard
 import com.pingai.app.ui.common.TopicPicker
@@ -89,7 +101,7 @@ private fun CountdownText(targetMs: Long, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(onOpenSaved: () -> Unit = {}) {
     val context = LocalContext.current
     val app = context.applicationContext
     val prefs = remember { Prefs(app) }
@@ -105,6 +117,23 @@ fun MainScreen() {
     val fetchingSince by prefs.fetchingSince.collectAsState(initial = 0L)
     val lastError by prefs.lastError.collectAsState(initial = null)
     val status by TipService.status.collectAsState()
+    val stats by prefs.stats.collectAsState(initial = com.pingai.app.data.Stats())
+    val saved by prefs.saved.collectAsState(initial = emptyList())
+    val themeId by prefs.widgetTheme.collectAsState(initial = "dark")
+    val quietOn by prefs.quietEnabled.collectAsState(initial = true)
+    val quietStart by prefs.quietStartMin.collectAsState(initial = 23 * 60)
+    val quietEnd by prefs.quietEndMin.collectAsState(initial = 7 * 60)
+    val optionCount by prefs.optionCount.collectAsState(initial = 2)
+    val cooldownUntil by TipService.cooldownUntil.collectAsState()
+    var nowTick by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(cooldownUntil) {
+        while (System.currentTimeMillis() < cooldownUntil) {
+            nowTick = System.currentTimeMillis()
+            delay(500)
+        }
+        nowTick = System.currentTimeMillis()
+    }
+    val waitSec = ((cooldownUntil - nowTick + 999) / 1000).coerceAtLeast(0).toInt()
 
     val active = topics.firstOrNull { it.id == activeId } ?: topics.firstOrNull()
     val maxTopics = if (isPro) 3 else 1
@@ -126,18 +155,26 @@ fun MainScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column {
-            Text("Ping AI", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
-            Text(stringResource(R.string.main_subtitle), color = WinColors.TextDim)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Ping AI", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = WinColors.Text)
+                Text(stringResource(R.string.main_subtitle), color = WinColors.TextDim)
+            }
+            Chip("♥ ${saved.size}", selected = false) { onOpenSaved() }
+            Spacer(Modifier.width(8.dp))
+            Chip("🔥 ${stats.effectiveStreak()}", selected = stats.effectiveStreak() > 0) { }
         }
 
         // Kahraman kart
         val heroShape = RoundedCornerShape(22.dp)
+        val flash by rememberQuizFlash(active)
+        val flashColor = if (active != null && active.answeredIdx == active.correctIdx) QuizGood else QuizBad
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(heroShape)
                 .background(Brush.linearGradient(listOf(WinColors.HeroStart, WinColors.HeroEnd)))
+                .drawBehind { drawRect(flashColor.copy(alpha = flash * 0.55f)) }
                 .border(1.dp, WinColors.Stroke, heroShape)
                 .padding(20.dp)
         ) {
@@ -150,38 +187,81 @@ fun MainScreen() {
             when {
                 loading && tip.isBlank() -> Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(22.dp), color = WinColors.Accent, strokeWidth = 2.dp)
-                    Spacer(Modifier.height(0.dp).padding(horizontal = 6.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text(stringResource(R.string.widget_loading), color = WinColors.TextDim)
                 }
                 tip.isBlank() && lastError != null ->
                     Text(lastError.orEmpty(), color = WinColors.Error, fontSize = 17.sp)
                 tip.isBlank() ->
                     Text(stringResource(R.string.hero_empty), color = WinColors.TextDim, fontSize = 17.sp)
-                else -> Text(tip, color = WinColors.Text, fontSize = 20.sp, lineHeight = 29.sp)
+                active != null && active.awaitingAnswer -> {
+                    Text(active.question, color = WinColors.Text, fontSize = 21.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(R.string.quiz_hint), color = WinColors.TextDim, fontSize = 13.sp)
+                    Spacer(Modifier.height(12.dp))
+                    QuizOptions(active.options) { i ->
+                        scope.launch {
+                            val ok = TipActions.answer(app, active.id, i)
+                            if (ok != null) WidgetUpdater.playFlash(app, ok)
+                        }
+                    }
+                }
+                else -> {
+                    if (active != null) {
+                        ResultLine(active)
+                        if (active.hasQuiz) Spacer(Modifier.height(8.dp))
+                    }
+                    Text(tip, color = WinColors.Text, fontSize = 20.sp, lineHeight = 29.sp)
+                }
             }
             if (tip.isNotBlank() && lastError != null && !loading) {
                 Spacer(Modifier.height(8.dp))
                 Text(lastError.orEmpty(), color = WinColors.Error, fontSize = 13.sp)
             }
-            if (active != null && active.nextUpdateEpochMs > System.currentTimeMillis() && !loading) {
+            if (active != null && active.nextUpdateEpochMs > System.currentTimeMillis() && !loading && !active.awaitingAnswer) {
                 Spacer(Modifier.height(10.dp))
                 CountdownText(active.nextUpdateEpochMs)
             }
             Spacer(Modifier.height(16.dp))
+
+            if (active != null && active.hasTip && !active.awaitingAnswer) {
+                val isSaved = saved.any { it.id == active.tipId }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Chip(if (isSaved) "♥ " + stringResource(R.string.btn_save) else "♡ " + stringResource(R.string.btn_save), selected = isSaved) {
+                        scope.launch { TipActions.toggleSave(app, active.id); WidgetUpdater.updateAll(app) }
+                    }
+                    Chip("👍", selected = active.feedback == 1) {
+                        scope.launch { TipActions.feedback(app, active.id, true); WidgetUpdater.updateAll(app) }
+                    }
+                    Chip("👎", selected = active.feedback == -1) {
+                        scope.launch { TipActions.feedback(app, active.id, false); WidgetUpdater.updateAll(app) }
+                    }
+                    Chip("↗ " + stringResource(R.string.btn_share), selected = false) {
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, TipActions.shareText(active))
+                        }
+                        context.startActivity(Intent.createChooser(send, null))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 val canRefresh = isPro || active?.shortInfo.isNullOrBlank() || lastError != null
                 Button(
-                    enabled = !loading && (canRefresh || !isPro),
-                    onClick = {
-                        if (canRefresh) TipService.launchRefresh(app, notify = false)
-                    }
+                    enabled = !loading && canRefresh && waitSec == 0,
+                    onClick = { TipService.launchRefresh(app, notify = false) }
                 ) {
                     Text(
-                        if (canRefresh) stringResource(R.string.btn_refresh)
-                        else stringResource(R.string.btn_refresh_locked)
+                        when {
+                            !canRefresh -> stringResource(R.string.btn_refresh_locked)
+                            waitSec > 0 -> stringResource(R.string.btn_wait, waitSec)
+                            else -> stringResource(R.string.btn_refresh)
+                        }
                     )
                 }
-                if (active != null && !active.shortInfo.isBlank()) {
+                if (active != null && active.hasTip && !active.awaitingAnswer) {
                     OutlinedButton(onClick = {
                         context.startActivity(
                             Intent(context, DetailActivity::class.java)
@@ -189,6 +269,16 @@ fun MainScreen() {
                         )
                     }) { Text(stringResource(R.string.btn_explain)) }
                 }
+            }
+        }
+
+        // İstatistikler
+        SectionCard(stringResource(R.string.sec_stats)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                StatCell("🔥 ${stats.effectiveStreak()}", stringResource(R.string.stat_streak))
+                StatCell("🏆 ${stats.best}", stringResource(R.string.stat_best))
+                StatCell("${stats.accuracyPercent}%", stringResource(R.string.stat_accuracy))
+                StatCell("${stats.answered}", stringResource(R.string.stat_answered))
             }
         }
 
@@ -252,7 +342,7 @@ fun MainScreen() {
                                 }
                             }
                             WidgetUpdater.updateAll(app)
-                            TipService.launchRefresh(app, notify = false)
+                            TipService.launchRefresh(app, notify = false, force = true)
                         }
                     }
                 ) { Text(stringResource(R.string.topic_save)) }
@@ -361,6 +451,73 @@ fun MainScreen() {
             }
         }
 
+        // Sessiz saatler
+        SectionCard(stringResource(R.string.sec_quiet)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.quiet_desc), color = WinColors.TextDim, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(10.dp))
+                Switch(checked = quietOn, onCheckedChange = { scope.launch { prefs.setQuietEnabled(it) } })
+            }
+            if (quietOn) {
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.quiet_from), color = WinColors.TextDim, fontSize = 13.sp)
+                    Chip("%02d:%02d".format(quietStart / 60, quietStart % 60), selected = false) {
+                        TimePickerDialog(context, { _, h, m -> scope.launch { prefs.setQuietStartMin(h * 60 + m) } },
+                            quietStart / 60, quietStart % 60, true).show()
+                    }
+                    Text(stringResource(R.string.quiet_to), color = WinColors.TextDim, fontSize = 13.sp)
+                    Chip("%02d:%02d".format(quietEnd / 60, quietEnd % 60), selected = false) {
+                        TimePickerDialog(context, { _, h, m -> scope.launch { prefs.setQuietEndMin(h * 60 + m) } },
+                            quietEnd / 60, quietEnd % 60, true).show()
+                    }
+                }
+            }
+        }
+
+        // Widget teması + şık sayısı
+        SectionCard(stringResource(R.string.sec_theme)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                WidgetThemes.all.forEach { th ->
+                    val locked = th.pro && !isPro
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(Color(th.accent))
+                                .border(1.dp, WinColors.Stroke, CircleShape)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Chip(
+                            label = stringResource(th.nameRes) + if (locked) " 🔒" else "",
+                            selected = themeId == th.id,
+                            enabled = !locked
+                        ) {
+                            scope.launch { prefs.setWidgetTheme(th.id); WidgetUpdater.updateAll(app) }
+                        }
+                    }
+                }
+            }
+            if (!isPro) {
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.theme_pro_note), color = WinColors.TextDim, fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(stringResource(R.string.pref_choices), color = WinColors.TextDim, fontSize = 13.sp)
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (2..4).forEach { n ->
+                    val locked = n > 2 && !isPro
+                    Chip(
+                        label = "$n" + if (locked) " 🔒" else "",
+                        selected = (if (isPro) optionCount else 2) == n,
+                        enabled = !locked
+                    ) { scope.launch { prefs.setOptionCount(n) } }
+                }
+            }
+        }
+
         // Pro
         SectionCard(stringResource(R.string.sec_pro)) {
             if (isPro) {
@@ -390,5 +547,13 @@ fun MainScreen() {
 
         Text(stringResource(R.string.widget_howto), color = WinColors.TextDim, fontSize = 13.sp)
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun StatCell(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = WinColors.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = WinColors.TextDim, fontSize = 12.sp)
     }
 }
