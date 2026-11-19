@@ -64,6 +64,7 @@ import com.pingai.app.ui.common.ResultLine
 import com.pingai.app.ui.common.rememberQuizFlash
 import com.pingai.app.ui.common.quizGlow
 import com.pingai.app.ui.common.ThemeTile
+import com.pingai.app.ui.common.BADGES
 import com.pingai.app.network.UpdateChecker
 import com.pingai.app.widget.WidgetThemes
 import androidx.compose.ui.draw.drawBehind
