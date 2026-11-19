@@ -1,6 +1,7 @@
 package com.pingai.app
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -14,15 +15,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.pingai.app.core.LocaleHelper
 import com.pingai.app.data.Prefs
+import com.pingai.app.ui.main.MainScreen
 import com.pingai.app.ui.onboarding.OnboardingScreen
-import com.pingai.app.ui.settings.SettingsScreen
 import com.pingai.app.ui.theme.PingAiTheme
+import com.pingai.app.ui.theme.WinColors
+import com.pingai.app.work.WorkScheduler
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,16 +45,21 @@ class MainActivity : ComponentActivity() {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
+        lifecycleScope.launch {
+            if (Prefs(applicationContext).onboardingDone.first()) {
+                WorkScheduler.ensureScheduled(applicationContext)
+            }
+        }
+
         setContent {
             val prefs = remember { Prefs(applicationContext) }
             val onboardingDone by prefs.onboardingDone.collectAsState(initial = null)
-
             PingAiTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(modifier = Modifier.fillMaxSize(), color = WinColors.Bg) {
                     when (onboardingDone) {
                         null -> {}
                         false -> OnboardingScreen()
-                        true -> SettingsScreen()
+                        true -> MainScreen()
                     }
                 }
             }

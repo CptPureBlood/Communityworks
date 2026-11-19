@@ -1,47 +1,93 @@
 <resources>
     <string name="app_name">Ping AI</string>
-    <string name="widget_description">Periodically shows a short AI-generated tip about a topic you choose.</string>
-    <string name="onboarding_welcome_title">Welcome to Ping AI</string>
-    <string name="onboarding_welcome_body">Ping AI periodically asks an AI (Gemini / ChatGPT / Claude) for a short piece of knowledge about a topic you choose, and shows it on your home screen widget.</string>
-    <string name="onboarding_provider_title">Choose your AI provider</string>
-    <string name="onboarding_provider_gemini">Google Gemini (Free)</string>
-    <string name="onboarding_provider_openai">ChatGPT (OpenAI, Pro)</string>
-    <string name="onboarding_provider_claude">Claude (Anthropic, Pro)</string>
-    <string name="onboarding_key_title">Enter your API key</string>
-    <string name="onboarding_key_instructions">1) For Gemini (free): open aistudio.google.com/apikey and sign in with your Google account.\n2) Tap \"Create API key\" and copy it.\n3) Paste the key below. It is stored only on your phone.\nGemini\'s free tier needs no credit card. ChatGPT and Claude keys are paid by those providers.</string>
-    <string name="onboarding_key_hint">Paste your API key here</string>
-    <string name="onboarding_open_studio">Open Google AI Studio</string>
-    <string name="onboarding_topic_title">What topic do you want to learn?</string>
-    <string name="onboarding_topic_hint">e.g. Life Saving Appliances and Fire Fighting Equipment</string>
-    <string name="onboarding_language_title">Content language</string>
-    <string name="onboarding_next">Next</string>
-    <string name="onboarding_finish">Get started</string>
-    <string name="settings_title">Settings</string>
-    <string name="settings_content_language">Content language</string>
-    <string name="settings_provider">AI provider</string>
-    <string name="settings_topics">Topics</string>
-    <string name="settings_add_topic">Add topic</string>
-    <string name="settings_refresh_interval">Refresh interval</string>
-    <string name="settings_notifications">Notifications</string>
-    <string name="settings_pro">Upgrade to Pro</string>
-    <string name="settings_pro_code_hint">Enter Pro unlock code</string>
-    <string name="settings_pro_active">Pro active</string>
-    <string name="settings_manual_refresh">Refresh now</string>
-    <string name="interval_12h">Every 12 hours (Free)</string>
-    <string name="interval_6h">Every 6 hours</string>
-    <string name="interval_4h">Every 4 hours</string>
-    <string name="interval_2h">Every 2 hours</string>
-    <string name="interval_1h">Every 1 hour</string>
-    <string name="interval_30m">Every 30 minutes</string>
-    <string name="interval_15m">Every 15 minutes</string>
-    <string name="interval_10m">Every 10 minutes</string>
-    <string name="widget_next_update">Next tip in %1$s</string>
+    <string name="widget_description">A short, memorable tip about your topic, refreshed on a schedule.</string>
+
+    <!-- Widget -->
+    <string name="widget_no_topic">Tap ⚙ to pick a topic</string>
     <string name="widget_loading">Fetching your tip…</string>
-    <string name="widget_error">Couldn\'t fetch a tip. Check your API key.</string>
-    <string name="widget_no_topic">Tap to set a topic</string>
+    <string name="widget_updating">Updating…</string>
+    <string name="widget_update_failed">⚠ Update failed, will retry</string>
+    <string name="widget_next_update">Next tip in %1$s</string>
     <string name="widget_refresh">Refresh</string>
-    <string name="notification_channel_name">Ping AI Tips</string>
+    <string name="widget_settings">Settings</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Ping AI tips</string>
     <string name="notification_title">New tip: %1$s</string>
+
+    <!-- Onboarding -->
+    <string name="onb_topic_title">What do you want to learn?</string>
+    <string name="onb_topic_sub">Pick a category to start, then make it as specific as you like.</string>
+    <string name="onb_key_title">Connect Gemini (free)</string>
+    <string name="onb_key_step1">Open Google AI Studio and sign in with your Google account.</string>
+    <string name="onb_key_step2">Tap “Create API key” and copy the key.</string>
+    <string name="onb_key_step3">Paste it below. It stays on your phone.</string>
+    <string name="onb_key_free_note">Gemini\'s free tier needs no credit card.</string>
+    <string name="onb_open_studio">Open Google AI Studio</string>
+    <string name="onb_key_hint">Paste your API key</string>
+    <string name="onb_lang_title">Language of your tips</string>
+    <string name="onb_lang_sub">You can change the app language later in Settings.</string>
+    <string name="onb_back">Back</string>
+    <string name="onb_next">Next</string>
+    <string name="onb_finish">Get my first tip</string>
+
+    <!-- Topic picker -->
+    <string name="topic_field_label">Your topic</string>
+    <string name="topic_hint_specific">Be as specific as you like, e.g. “Roman law” or “Fire fighting equipment (SOLAS)”.</string>
+    <string name="cat_history">History</string>
+    <string name="cat_law">Law</string>
+    <string name="cat_fun_facts">Fun facts</string>
+    <string name="cat_science">Science</string>
+    <string name="cat_geography">Geography</string>
+    <string name="cat_technology">Technology</string>
+    <string name="cat_health">Health</string>
+    <string name="cat_languages">Languages</string>
+    <string name="cat_maritime">Maritime &amp; safety</string>
+    <string name="cat_business">Business</string>
+    <string name="cat_space">Space</string>
+    <string name="cat_psychology">Psychology</string>
+
+    <!-- Main -->
+    <string name="main_subtitle">Your daily micro-lesson</string>
+    <string name="hero_empty">Your first tip will appear here.</string>
+    <string name="btn_refresh">Refresh now</string>
+    <string name="btn_refresh_locked">Refresh · Pro 🔒</string>
+    <string name="btn_explain">Explain more</string>
+    <string name="sec_topics">Topics (%1$d/%2$d)</string>
+    <string name="topic_add">＋ Add topic</string>
+    <string name="topic_change">✎ Change topic</string>
+    <string name="topic_save">Save topic</string>
+    <string name="topic_remove">Remove selected</string>
+    <string name="topic_free_note">Free plan: 1 topic. Pro unlocks up to 3.</string>
+    <string name="sec_refresh">Refresh interval</string>
+    <string name="sec_ai">AI provider</string>
+    <string name="ai_key_label">API key</string>
+    <string name="ai_save">Save key</string>
+    <string name="ai_saved">Key saved</string>
+    <string name="ai_get_key">Get a free Gemini key</string>
+    <string name="sec_prefs">Preferences</string>
+    <string name="pref_notifications">Notifications</string>
+    <string name="pref_content_language">Content language</string>
+    <string name="pref_app_language">App language</string>
+    <string name="lang_system">System</string>
+    <string name="sec_pro">Pro</string>
+    <string name="pro_body">Pro unlocks up to 3 topics, intervals down to 10 minutes, manual refresh from the widget, other AI providers and no ads.</string>
+    <string name="pro_code_hint">Unlock code</string>
+    <string name="pro_apply">Unlock</string>
+    <string name="pro_active">Pro is active</string>
+    <string name="widget_howto">Add the widget: long-press your home screen → Widgets → Ping AI.</string>
+
+    <!-- Detail -->
     <string name="detail_loading">Getting the detailed explanation…</string>
-    <string name="pro_upgrade_body">Pro unlocks up to 3 topics, refresh intervals down to 10 minutes, manual refresh, and no ads.</string>
+    <string name="detail_retry">Try again</string>
+
+    <!-- Errors -->
+    <string name="err_no_key">No API key saved for %1$s. Open the app and paste your key.</string>
+    <string name="err_rate">Gemini rate limit reached (429). Retrying automatically in a few minutes.</string>
+    <string name="err_busy">Gemini is busy right now (503). Retrying automatically.</string>
+    <string name="err_key">The API key was rejected: %1$s</string>
+    <string name="err_model">No Gemini model was available for this key (404). Try again in a moment.</string>
+    <string name="err_timeout">The request timed out. Check your connection and try again.</string>
+    <string name="err_network">No internet connection.</string>
+    <string name="err_unknown">Something went wrong: %1$s</string>
 </resources>

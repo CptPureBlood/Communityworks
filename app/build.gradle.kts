@@ -11,8 +11,19 @@ android {
         applicationId = "com.pingai.app"
         minSdk = 31
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Her GitHub derlemesinde artar; böylece güncelleme olarak kurulabilir.
+        versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+        versionName = "1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
+    }
+
+    // Sabit imza: her derleme aynı anahtarla imzalanır -> eski uygulamanın üstüne güncelleme çalışır.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -45,11 +56,8 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-
-    implementation("androidx.glance:glance-appwidget:1.1.1")
 
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
@@ -57,6 +65,4 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.android.gms:play-services-ads:23.2.0")
-
-    debugImplementation("androidx.compose.ui:ui-tooling")
 }

@@ -11,6 +11,7 @@ import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.pingai.app.R
+import com.pingai.app.core.LocaleHelper
 import com.pingai.app.data.Topic
 import com.pingai.app.ui.detail.DetailActivity
 
@@ -26,7 +27,7 @@ object NotificationHelper {
             .build()
         val channel = NotificationChannel(
             CHANNEL_ID,
-            context.getString(R.string.notification_channel_name),
+            LocaleHelper.wrap(context).getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             setSound(soundUri, attrs)
@@ -39,6 +40,7 @@ object NotificationHelper {
     fun showTipNotification(context: Context, topic: Topic) {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
+        val loc = LocaleHelper.wrap(context)
 
         val intent = Intent(context, DetailActivity::class.java).apply {
             putExtra(DetailActivity.EXTRA_TOPIC_ID, topic.id)
@@ -50,7 +52,7 @@ object NotificationHelper {
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.notification_title, topic.name))
+            .setContentTitle(loc.getString(R.string.notification_title, topic.name))
             .setContentText(topic.shortInfo)
             .setStyle(NotificationCompat.BigTextStyle().bigText(topic.shortInfo))
             .setPriority(NotificationCompat.PRIORITY_HIGH)

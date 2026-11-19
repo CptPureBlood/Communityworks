@@ -1,18 +1,22 @@
 package com.pingai.app.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 
-private val Context.dataStore by preferencesDataStore(name = "ping_ai_settings")
+private val Context.pingDataStore by preferencesDataStore(name = "ping_ai_settings")
 
 class Prefs(context: Context) {
 
-    private val ds = context.applicationContext.dataStore
+    private val ds = context.applicationContext.pingDataStore
 
     private object Keys {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
@@ -23,6 +27,8 @@ class Prefs(context: Context) {
         val REFRESH_INTERVAL_MIN = intPreferencesKey("refresh_interval_min")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val IS_PRO = booleanPreferencesKey("is_pro")
+        val LAST_ERROR = stringPreferencesKey("last_error")
+        val FETCHING_SINCE = longPreferencesKey("fetching_since")
     }
 
     val onboardingDone: Flow<Boolean> = ds.data.map { it[Keys.ONBOARDING_DONE] ?: false }
@@ -33,10 +39,20 @@ class Prefs(context: Context) {
     val notificationsEnabled: Flow<Boolean> = ds.data.map { it[Keys.NOTIFICATIONS_ENABLED] ?: true }
     val isPro: Flow<Boolean> = ds.data.map { it[Keys.IS_PRO] ?: false }
     val activeTopicId: Flow<String?> = ds.data.map { it[Keys.ACTIVE_TOPIC_ID] }
+    val lastError: Flow<String?> = ds.data.map { it[Keys.LAST_ERROR]?.takeIf { e -> e.isNotBlank() } }
+    val fetchingSince: Flow<Long> = ds.data.map { it[Keys.FETCHING_SINCE] ?: 0L }
 
-    val topics: Flow<List<Topic>> = ds.data.map { prefs ->
-        val arr = JSONArray(prefs[Keys.TOPICS_JSON] ?: "[]")
-        (0 until arr.length()).map { Topic.fromJson(arr.getJSONObject(it)) }
+    val topics: Flow<List<Topic>> = ds.data.map { p -> parseTopics(p[Keys.TOPICS_JSON]) }
+
+    private fun parseTopics(raw: String?): List<Topic> {
+        val arr = JSONArray(raw ?: "[]")
+        return (0 until arr.length()).map { Topic.fromJson(arr.getJSONObject(it)) }
+    }
+
+    private fun encodeTopics(list: List<Topic>): String {
+        val arr = JSONArray()
+        list.forEach { arr.put(it.toJson()) }
+        return arr.toString()
     }
 
     suspend fun setOnboardingDone(v: Boolean) { ds.edit { it[Keys.ONBOARDING_DONE] = v } }
@@ -46,23 +62,35 @@ class Prefs(context: Context) {
     suspend fun setNotificationsEnabled(v: Boolean) { ds.edit { it[Keys.NOTIFICATIONS_ENABLED] = v } }
     suspend fun setPro(v: Boolean) { ds.edit { it[Keys.IS_PRO] = v } }
     suspend fun setActiveTopicId(v: String) { ds.edit { it[Keys.ACTIVE_TOPIC_ID] = v } }
+    suspend fun setLastError(v: String) { ds.edit { it[Keys.LAST_ERROR] = v } }
+    suspend fun setFetchingSince(v: Long) { ds.edit { it[Keys.FETCHING_SINCE] = v } }
 
     suspend fun getTopicsOnce(): List<Topic> = topics.first()
 
     suspend fun saveTopics(list: List<Topic>) {
-        val arr = JSONArray()
-        list.forEach { arr.put(it.toJson()) }
-        ds.edit { it[Keys.TOPICS_JSON] = arr.toString() }
+        ds.edit { it[Keys.TOPICS_JSON] = encodeTopics(list) }
     }
 
     suspend fun upsertTopic(topic: Topic) {
-        val current = getTopicsOnce().toMutableList()
-        val idx = current.indexOfFirst { it.id == topic.id }
-        if (idx >= 0) current[idx] = topic else current.add(topic)
-        saveTopics(current)
+        ds.edit { p ->
+            val current = parseTopics(p[Keys.TOPICS_JSON]).toMutableList()
+            val idx = current.indexOfFirst { it.id == topic.id }
+            if (idx >= 0) current[idx] = topic else current.add(topic)
+            p[Keys.TOPICS_JSON] = encodeTopics(current)
+        }
+    }
+
+    /** Tek bir konuyu atomik olarak günceller (başka alanlara dokunmaz). */
+    suspend fun updateTopic(id: String, transform: (Topic) -> Topic) {
+        ds.edit { p ->
+            val updated = parseTopics(p[Keys.TOPICS_JSON]).map { if (it.id == id) transform(it) else it }
+            p[Keys.TOPICS_JSON] = encodeTopics(updated)
+        }
     }
 
     suspend fun removeTopic(id: String) {
-        saveTopics(getTopicsOnce().filterNot { it.id == id })
+        ds.edit { p ->
+            p[Keys.TOPICS_JSON] = encodeTopics(parseTopics(p[Keys.TOPICS_JSON]).filterNot { it.id == id })
+        }
     }
 }

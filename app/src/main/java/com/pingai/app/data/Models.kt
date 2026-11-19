@@ -28,23 +28,23 @@ data class Topic(
     }
 }
 
-enum class AiProvider(val id: String, val displayLabel: String) {
-    GEMINI("gemini", "Google Gemini"),
-    OPENAI("openai", "ChatGPT (OpenAI)"),
-    CLAUDE("claude", "Claude (Anthropic)");
+enum class AiProvider(val id: String, val displayLabel: String, val shortLabel: String) {
+    GEMINI("gemini", "Google Gemini", "Gemini"),
+    OPENAI("openai", "ChatGPT (OpenAI)", "ChatGPT"),
+    CLAUDE("claude", "Claude (Anthropic)", "Claude");
 
     companion object {
         fun fromId(id: String?): AiProvider = entries.firstOrNull { it.id == id } ?: GEMINI
     }
 }
 
-enum class RefreshInterval(val minutes: Int, val isPro: Boolean) {
-    H12(720, false),
-    H6(360, true),
-    H4(240, true),
-    H2(120, true),
-    H1(60, true),
-    M30(30, true),
-    M15(15, true),
-    M10(10, true)
+enum class RefreshInterval(val minutes: Int, val label: String, val isPro: Boolean) {
+    H12(720, "12 h", false),
+    H6(360, "6 h", true),
+    H4(240, "4 h", true),
+    H2(120, "2 h", true),
+    H1(60, "1 h", true),
+    M30(30, "30 min", true),
+    M15(15, "15 min", true),
+    M10(10, "10 min", true)
 }

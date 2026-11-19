@@ -7,7 +7,8 @@ import com.pingai.app.notification.NotificationHelper
 class PingAiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        MobileAds.initialize(this)
         NotificationHelper.ensureChannel(this)
+        // Reklam SDK'sı ana thread'i yavaşlatmasın diye arka planda başlatılır.
+        Thread { MobileAds.initialize(this) }.start()
     }
 }
